@@ -193,55 +193,144 @@ function configured() {
     const v = document.getElementById(id).value.trim();
     return v === "" ? null : Number(v);
   }
-  async function loadRoadData() {
-    if (!currentUser) return;
-    markerLayer.clearLayers();
-    const [clearances, restrictions] = await Promise.all([
-      supabaseClient.from("road_clearances").select("*").limit(500),
-      supabaseClient.from("road_restrictions").select("*").limit(500)
-    ]);
-    if (clearances.error || restrictions.error) {
-      setStatus("Conectado, mas houve erro ao consultar dados rodoviários. Confira as políticas RLS. " +
-        (clearances.error ? clearances.error.message : restrictions.error.message));
-      return;
+
+async function loadRoadData() {
+  if (!currentUser) return;
+
+  markerLayer.clearLayers();
+
+  const heightInput = document.getElementById("height");
+  const truckHeight = Number(heightInput?.value || 4.40);
+
+  const [clearances, restrictions] = await Promise.all([
+    supabaseClient
+      .from("road_clearances")
+      .select("*")
+      .limit(500),
+
+    supabaseClient
+      .from("road_restrictions")
+      .select("*")
+      .limit(500)
+  ]);
+
+  if (clearances.error || restrictions.error) {
+    const error = clearances.error || restrictions.error;
+
+    setStatus(
+      "Erro ao carregar dados rodoviários: " + error.message
+    );
+
+    return;
+  }
+
+  let count = 0;
+
+  // Marcadores de pontes e viadutos
+  (clearances.data || []).forEach(p => {
+    if (p.latitude == null || p.longitude == null) return;
+
+    const height = p.clearance_height_m;
+    const verified = p.verification_status === "verified";
+
+    let alertText;
+    let color;
+
+    if (!verified) {
+      alertText = "DADO NÃO VERIFICADO";
+      color = "#777777";
+    } else if (height == null) {
+      alertText = "ALTURA DESCONHECIDA";
+      color = "#b26a00";
+    } else if (Number(height) <= truckHeight) {
+      alertText = "ALERTA: LIMITE DE ALTURA INFERIOR OU IGUAL AO VEÍCULO";
+      color = "#b3261e";
+    } else {
+      alertText = "Altura cadastrada: " + height + " m";
+      color = "#176b3a";
     }
-    let count = 0;
-    (clearances.data || []).forEach(p => {
-      if (p.latitude == null || p.longitude == null) return;
-      const h = p.clearance_height_m;
-      const label = h == null ? "ALTURA DESCONHECIDA" : (Number(h) < Number(document.getElementById("height").value) ? "POSSÍVEL RISCO" : "Altura cadastrada: " + h + " m");
-      const color = h == null || Number(h) < Number(document.getElementById("height").value) ? "#b3261e" : "#176b3a";
-      L.circleMarker([p.latitude, p.longitude], {radius:8, color, fillColor:color, fillOpacity:.8})
-        .bindPopup("<strong>" + escapeHtml(p.name || "Viaduto/passagem") + "</strong><br>" +
-          escapeHtml(p.road_name || "") + "<br>" + escapeHtml(label) + "<br>Status: " +
-          escapeHtml(p.verification_status || "desconhecido") +
-          "<br><em>Não use este marcador como confirmação de segurança.</em>").addTo(markerLayer);
-      count++;
-    });
-    (restrictions.data || []).forEach(p => {
-      if (p.latitude == null || p.longitude == null) return;
-      L.marker([p.latitude, p.longitude]).bindPopup("<strong>Restrição: " +
-        escapeHtml(p.restriction_type) + "</strong><br>" + escapeHtml(p.road_name || "") +
-        "<br>" + escapeHtml(p.description) + "<br>Status: " + escapeHtml(p.verification_status || "desconhecido"))
-        .addTo(markerLayer);
-      count++;
-    });
-    setStatus("Conectado. " + count + " ponto(s) cadastrado(s) carregado(s). Se não houver pontos, o mapa ficará sem marcadores.");
-  }
-  function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-  }
-  function locate() {
-    if (!navigator.geolocation) return setStatus("Este navegador não oferece localização.");
-    setStatus("Solicitando permissão para usar a localização do celular...");
-    navigator.geolocation.getCurrentPosition(pos => {
-      const latlng = [pos.coords.latitude, pos.coords.longitude];
-      map.setView(latlng, 15);
-      if (userMarker) userMarker.remove();
-      userMarker = L.marker(latlng).addTo(map).bindPopup("Sua localização aproximada do GPS do celular").openPopup();
-      setStatus("Localização mostrada no mapa. Isso ainda não calcula uma rota para caminhões.");
-    }, err => setStatus("Não foi possível obter a localização: " + err.message), {enableHighAccuracy:true, timeout:15000});
-  }
+
+    L.circleMarker(
+      [p.latitude, p.longitude],
+      {
+        radius: 8,
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.8
+      }
+    )
+      .bindPopup(
+        "<strong>" + escapeHtml(p.name || "Ponte/viaduto") + "</strong><br>" +
+        escapeHtml(p.road_name || "") + "<br>" +
+        "<strong>" + escapeHtml(alertText) + "</strong><br>" +
+        "Altura do veículo: " + truckHeight.toFixed(2) + " m<br>" +
+        "Altura cadastrada: " +
+        escapeHtml(height == null ? "não informada" : height + " m") + "<br>" +
+        "Status: " + escapeHtml(p.verification_status || "desconhecido") + "<br>" +
+        "<em>Confirme os dados e a sinalização local antes de circular.</em>"
+      )
+      .addTo(markerLayer);
+
+    count++;
+  });
+
+  // Marcadores de restrições rodoviárias
+  (restrictions.data || []).forEach(p => {
+    if (p.latitude == null || p.longitude == null) return;
+
+    const verified = p.verification_status === "verified";
+    const maxHeight = p.max_height_m;
+
+    let alertText;
+    let color;
+
+    if (!verified) {
+      alertText = "RESTRIÇÃO NÃO VERIFICADA";
+      color = "#777777";
+    } else if (maxHeight == null) {
+      alertText = "Limite de altura desconhecido";
+      color = "#b26a00";
+    } else if (Number(maxHeight) <= truckHeight) {
+      alertText = "ALERTA DE ALTURA";
+      color = "#b3261e";
+    } else {
+      alertText = "Verificar outras restrições";
+      color = "#176b3a";
+    }
+
+    L.circleMarker(
+      [p.latitude, p.longitude],
+      {
+        radius: 9,
+        color: color,
+        fillColor: color,
+        fillOpacity: 0.85
+      }
+    )
+      .bindPopup(
+        "<strong>Restrição: " +
+        escapeHtml(p.restriction_type || "não especificada") +
+        "</strong><br>" +
+        escapeHtml(p.road_name || "") + "<br>" +
+        escapeHtml(p.description || "") + "<br>" +
+        "<strong>" + escapeHtml(alertText) + "</strong><br>" +
+        "Altura do veículo: " + truckHeight.toFixed(2) + " m<br>" +
+        "Limite cadastrado: " +
+        escapeHtml(maxHeight == null ? "não informado" : maxHeight + " m") +
+        "<br>Status: " +
+        escapeHtml(p.verification_status || "desconhecido") +
+        "<br><em>Não use dados não verificados para decidir uma rota.</em>"
+      )
+      .addTo(markerLayer);
+
+    count++;
+  });
+
+  setStatus(
+    "Conectado. " + count +
+    " ponto(s) carregado(s). Confira o status de verificação de cada registro."
+  );
+}
   async function logout() {
     if (supabaseClient) await supabaseClient.auth.signOut();
     setStatus("Você saiu da conta.");
