@@ -90,6 +90,9 @@
   const statusBox = document.getElementById("status");
   const authCard = document.getElementById("authCard");
   const profileCard = document.getElementById("profileCard");
+  function setStatus(message) {
+  statusBox.textContent = message;
+}
   let supabaseClient = null;
   let map = null;
   let markerLayer = null;
