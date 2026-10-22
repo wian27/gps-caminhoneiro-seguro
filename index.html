@@ -1,3 +1,25 @@
+Abaixo está uma versão completa do **`index.html`** com:
+
+- cadastro/login Supabase;
+- perfil da carreta;
+- rota com origem, destino e paradas;
+- alternativas de rota;
+- análise de viadutos e limites de altura próximos da rota;
+- status visual: **pode passar / não passar / não confirmado**;
+- alertas enviados por usuários: polícia, acidente, buraco, lombada, interdição etc.;
+- cadastro de restrições urbanas para carretas;
+- dias e horários de restrição;
+- diferenciação entre restrição **comunitária** e **oficial**;
+- alerta conforme o horário estimado de chegada à área restrita;
+- navegação básica e orientação por voz.
+
+> **Importante:** os dados oficiais devem ser importados para a tabela `city_truck_restrictions` por uma rotina no servidor/Supabase Edge Function. O HTML abaixo já exibe dados com `source_type = "official"` e link da fonte oficial quando esses registros estiverem no banco.
+
+---
+
+## 1. Arquivo `index.html`
+
+```html
 <!doctype html>
 <html lang="pt-BR">
 <head>
@@ -2296,6 +2318,8 @@
             "</strong><br>" +
             escapeHtml(restrictionTypeLabel(item.restriction_type)) +
             "<br>" +
-            (item.road_name)
+            (item.road_name
               ? "<strong>"
-            
+            </script>
+          </body>
+          </html>
