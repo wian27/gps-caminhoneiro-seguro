@@ -51,7 +51,7 @@
     <div class="status" id="userStatus">Conectado.</div>
     <label for="vehicleName">Tipo de veículo</label><input id="vehicleName" value="Carreta sider">
     <div class="row">
-      <div><label for="height">Altura (m)</label><input id="height" type="number" step="0.01" min="0.1" value="4.40"></div>
+      <div><label for="height">Altura (m)</label><input id="height" type="number" step="0.01" min="0.1" max="10" value="4.40"></div>
       <div><label for="width">Largura (m)</label><input id="width" type="number" step="0.01" min="0.1" placeholder="Opcional"></div>
     </div>
     <div class="row">
@@ -67,7 +67,7 @@
   <section class="card">
     <h2>Estado do sistema</h2>
     <div id="status" class="status">Configure a URL e a chave pública do Supabase neste arquivo para começar.</div>
-    <p class="small"><span class="pill">Mapa OpenStreetMap</span><span class="pill">Supabase</span><span class="pill">Altura 4,40 m</span></p>
+    <p class="small"><span class="pill">Mapa OpenStreetMap</span><span class="pill">Supabase</span><span class="pill" id="heightPill">Altura 4,40 m</span></p>
     <div class="warning"><strong>Importante:</strong> este protótipo não é um GPS de navegação certificado. Não use para decidir se uma passagem é segura. Os dados podem estar incompletos; altura desconhecida deve ser tratada como risco.</div>
   </section>
 
@@ -84,49 +84,80 @@
   // PASSO OBRIGATÓRIO: substitua os dois valores abaixo pelos dados do SEU projeto.
   // Use a Project URL e a chave Publishable (sb_publishable_...).
   // Nunca coloque Secret key ou service_role neste arquivo.
- const SUPABASE_URL = "https://paiijqyfozhanqdihhph.supabase.co";
+  const SUPABASE_URL = "https://paiijqyfozhanqdihhph.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_wee3DURgbdJQC7xXOJsSCQ_mhRrH6w1";
+
+  // Margem de segurança somada à altura do veículo (carga, pneus, suspensão).
+  const SAFETY_MARGIN_M = 0.20;
+  const DEFAULT_HEIGHT_M = 4.40;
 
   const statusBox = document.getElementById("status");
   const authCard = document.getElementById("authCard");
   const profileCard = document.getElementById("profileCard");
-  function setStatus(message) {
-  statusBox.textContent = message;
-}
+  const heightInput = document.getElementById("height");
+  const heightPill = document.getElementById("heightPill");
+
   let supabaseClient = null;
-  let map = null;
-  let markerLayer = null;
-  let userMarker = null;
   let currentUser = null;
+  let userMarker = null;
 
+  function setStatus(message) {
+    statusBox.textContent = message;
+  }
 
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
 
-function configured() {
-  return (
-    typeof SUPABASE_URL === "string" &&
-    /^https:\/\/[a-zA-Z0-9-]+\.supabase\.co\/?$/.test(SUPABASE_URL) &&
-    typeof SUPABASE_PUBLISHABLE_KEY === "string" &&
-    SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")
-  );
-}
+  function configured() {
+    return (
+      typeof SUPABASE_URL === "string" &&
+      /^https:\/\/[a-zA-Z0-9-]+\.supabase\.co\/?$/.test(SUPABASE_URL) &&
+      typeof SUPABASE_PUBLISHABLE_KEY === "string" &&
+      SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")
+    );
+  }
 
-  map = L.map("map").setView([-14.235, -51.9253], 4);
+  function getTruckHeight() {
+    const h = Number(heightInput.value);
+    return h > 0 && h <= 10 ? h : DEFAULT_HEIGHT_M;
+  }
+
+  function updateHeightPill() {
+    heightPill.textContent = "Altura " + getTruckHeight().toFixed(2).replace(".", ",") + " m";
+  }
+
+  heightInput.addEventListener("input", updateHeightPill);
+
+  // Mapa
+  const map = L.map("map").setView([-14.235, -51.9253], 4);
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+    maxZoom: 19,
+    attribution: "&copy; OpenStreetMap contributors"
   }).addTo(map);
-  markerLayer = L.layerGroup().addTo(map);
+  const markerLayer = L.layerGroup().addTo(map);
 
+  // Inicialização do Supabase
   if (configured()) {
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
     supabaseClient.auth.getSession().then(({ data, error }) => {
-      if (error) setStatus("Erro ao verificar sessão: " + error.message);
-      if (data.session) showLoggedIn(data.session.user);
+      if (error) {
+        setStatus("Erro ao verificar sessão: " + error.message);
+        return;
+      }
+      if (data?.session) showLoggedIn(data.session.user);
       else setStatus("Supabase configurado. Entre ou crie sua conta.");
     });
+
     supabaseClient.auth.onAuthStateChange((_event, session) => {
-      if (session) showLoggedIn(session.user);
-      else {
+      if (session) {
+        showLoggedIn(session.user);
+      } else {
         currentUser = null;
+        markerLayer.clearLayers();
         authCard.classList.remove("hidden");
         profileCard.classList.add("hidden");
       }
@@ -135,49 +166,87 @@ function configured() {
     setStatus("Falta configurar a URL e a chave Publishable no início do arquivo HTML. Não compartilhe chaves secretas.");
   }
 
+  // Autenticação
   async function signup() {
     if (!supabaseClient) return setStatus("Configure primeiro a URL e a chave Publishable no arquivo HTML.");
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
     if (!email || password.length < 6) return setStatus("Digite um e-mail válido e uma senha com pelo menos 6 caracteres.");
     const { error } = await supabaseClient.auth.signUp({ email, password });
-    setStatus(error ? "Erro ao criar conta: " + error.message : "Pedido de cadastro enviado. Se a confirmação de e-mail estiver ativa, confirme o e-mail e depois entre.");
+    setStatus(error
+      ? "Erro ao criar conta: " + error.message
+      : "Pedido de cadastro enviado. Se a confirmação de e-mail estiver ativa, confirme o e-mail e depois entre.");
   }
+
   async function login() {
     if (!supabaseClient) return setStatus("Configure primeiro a URL e a chave Publishable no arquivo HTML.");
     const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) setStatus("Erro ao entrar: " + error.message);
-    else showLoggedIn(data.user);
+    else if (data?.user) await showLoggedIn(data.user);
   }
+
+  async function logout() {
+    if (supabaseClient) await supabaseClient.auth.signOut();
+    setStatus("Você saiu da conta.");
+  }
+
   async function showLoggedIn(user) {
+    // Evita carregar os dados duas vezes (login + onAuthStateChange).
+    if (currentUser && currentUser.id === user.id) return;
+
     currentUser = user;
     authCard.classList.add("hidden");
     profileCard.classList.remove("hidden");
     document.getElementById("userStatus").textContent = "Conectado como " + (user.email || "usuário autenticado");
     setStatus("Conectado. Carregando dados cadastrados...");
-    await loadProfile();
-    await loadRoadData();
+
+    try {
+      await loadProfile();
+      await loadRoadData();
+    } catch (e) {
+      setStatus("Erro ao carregar dados: " + e.message);
+    }
   }
+
+  // Perfil do veículo
   async function loadProfile() {
     if (!currentUser) return;
-    const { data, error } = await supabaseClient.from("vehicle_profiles")
-      .select("*").eq("user_id", currentUser.id).order("created_at", { ascending: false }).limit(1);
-    if (error) { setStatus("Não foi possível carregar o perfil: " + error.message); return; }
+    const { data, error } = await supabaseClient
+      .from("vehicle_profiles")
+      .select("*")
+      .eq("user_id", currentUser.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+
+    if (error) {
+      setStatus("Não foi possível carregar o perfil: " + error.message);
+      return;
+    }
+
     if (data && data.length) {
       const p = data[0];
       document.getElementById("vehicleName").value = p.vehicle_name || "Carreta sider";
-      document.getElementById("height").value = p.height_m ?? 4.40;
+      heightInput.value = p.height_m ?? DEFAULT_HEIGHT_M;
       document.getElementById("width").value = p.width_m ?? "";
       document.getElementById("length").value = p.length_m ?? "";
       document.getElementById("weight").value = p.gross_weight_t ?? "";
+      updateHeightPill();
     }
   }
+
+  function optionalNumber(id) {
+    const v = document.getElementById(id).value.trim();
+    return v === "" ? null : Number(v);
+  }
+
   async function saveProfile() {
     if (!currentUser) return setStatus("Entre na sua conta primeiro.");
-    const height = Number(document.getElementById("height").value);
-    if (!(height > 0 && height <= 10)) return setStatus("Informe uma altura válida em metros.");
+
+    const height = Number(heightInput.value);
+    if (!(height > 0 && height <= 10)) return setStatus("Informe uma altura válida em metros (entre 0,1 e 10).");
+
     const payload = {
       user_id: currentUser.id,
       vehicle_name: document.getElementById("vehicleName").value.trim() || "Carreta sider",
@@ -186,163 +255,184 @@ function configured() {
       length_m: optionalNumber("length"),
       gross_weight_t: optionalNumber("weight")
     };
-    const { error } = await supabaseClient.from("vehicle_profiles").insert(payload);
-    setStatus(error ? "Erro ao salvar perfil: " + error.message : "Perfil salvo. Altura configurada: " + height.toFixed(2) + " m.");
-  }
-  function optionalNumber(id) {
-    const v = document.getElementById(id).value.trim();
-    return v === "" ? null : Number(v);
-  }
 
-async function loadRoadData() {
-  if (!currentUser) return;
+    // Requer restrição UNIQUE em vehicle_profiles.user_id (veja a observação no chat).
+    const { error } = await supabaseClient
+      .from("vehicle_profiles")
+      .upsert(payload, { onConflict: "user_id" });
 
-  markerLayer.clearLayers();
-
-  const heightInput = document.getElementById("height");
-  const truckHeight = Number(heightInput?.value || 4.40);
-
-  const [clearances, restrictions] = await Promise.all([
-    supabaseClient
-      .from("road_clearances")
-      .select("*")
-      .limit(500),
-
-    supabaseClient
-      .from("road_restrictions")
-      .select("*")
-      .limit(500)
-  ]);
-
-  if (clearances.error || restrictions.error) {
-    const error = clearances.error || restrictions.error;
-
-    setStatus(
-      "Erro ao carregar dados rodoviários: " + error.message
-    );
-
-    return;
-  }
-
-  let count = 0;
-
-  // Marcadores de pontes e viadutos
-  (clearances.data || []).forEach(p => {
-    if (p.latitude == null || p.longitude == null) return;
-
-    const height = p.clearance_height_m;
-    const verified = p.verification_status === "verified";
-
-    let alertText;
-    let color;
-
-    if (!verified) {
-      alertText = "DADO NÃO VERIFICADO";
-      color = "#777777";
-    } else if (height == null) {
-      alertText = "ALTURA DESCONHECIDA";
-      color = "#b26a00";
-    } else if (Number(height) <= truckHeight) {
-      alertText = "ALERTA: LIMITE DE ALTURA INFERIOR OU IGUAL AO VEÍCULO";
-      color = "#b3261e";
-    } else {
-      alertText = "Altura cadastrada: " + height + " m";
-      color = "#176b3a";
+    if (error) {
+      setStatus("Erro ao salvar perfil: " + error.message);
+      return;
     }
 
-    L.circleMarker(
-      [p.latitude, p.longitude],
-      {
+    updateHeightPill();
+    setStatus("Perfil salvo. Altura configurada: " + height.toFixed(2) + " m.");
+    await loadRoadData();
+  }
+
+  // Localização do usuário
+  function locate() {
+    if (!navigator.geolocation) {
+      setStatus("Geolocalização não suportada neste navegador.");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const { latitude, longitude } = pos.coords;
+        if (userMarker) userMarker.remove();
+        userMarker = L.circleMarker([latitude, longitude], {
+          radius: 8,
+          color: "#1e6848",
+          fillColor: "#1e6848",
+          fillOpacity: 0.9
+        }).addTo(map).bindPopup("Você está aqui");
+        map.setView([latitude, longitude], 14);
+        setStatus("Localização exibida no mapa.");
+      },
+      err => setStatus("Não foi possível obter a localização: " + err.message),
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  // Pontos de pontes, viadutos e restrições
+  async function loadRoadData() {
+    if (!currentUser || !supabaseClient) return;
+
+    markerLayer.clearLayers();
+    setStatus("Carregando pontos cadastrados...");
+
+    const truckHeight = getTruckHeight();
+    const threshold = truckHeight + SAFETY_MARGIN_M;
+
+    const [clearances, restrictions] = await Promise.all([
+      supabaseClient.from("road_clearances").select("*").limit(500),
+      supabaseClient.from("road_restrictions").select("*").limit(500)
+    ]);
+
+    if (clearances.error || restrictions.error) {
+      const error = clearances.error || restrictions.error;
+      setStatus("Erro ao carregar dados rodoviários: " + error.message);
+      return;
+    }
+
+    let count = 0;
+
+    // Pontes e viadutos
+    (clearances.data || []).forEach(p => {
+      if (p.latitude == null || p.longitude == null) return;
+
+      const height = p.clearance_height_m;
+      const verified = p.verification_status === "verified";
+      let alertText;
+      let color;
+
+      if (!verified) {
+        alertText = "DADO NÃO VERIFICADO";
+        color = "#777777";
+      } else if (height == null) {
+        alertText = "ALTURA DESCONHECIDA: TRATAR COMO RISCO";
+        color = "#b3261e";
+      } else if (Number(height) < threshold) {
+        alertText = "ALERTA: ALTURA IGUAL OU PRÓXIMA DO VEÍCULO (margem de " + SAFETY_MARGIN_M.toFixed(2) + " m)";
+        color = "#b3261e";
+      } else {
+        alertText = "Altura cadastrada: " + height + " m";
+        color = "#176b3a";
+      }
+
+      L.circleMarker([p.latitude, p.longitude], {
         radius: 8,
         color: color,
         fillColor: color,
         fillOpacity: 0.8
+      })
+        .bindPopup(
+          "<strong>" + escapeHtml(p.name || "Ponte/viaduto") + "</strong><br>" +
+          escapeHtml(p.road_name || "") + "<br>" +
+          "<strong>" + escapeHtml(alertText) + "</strong><br>" +
+          "Altura do veículo: " + truckHeight.toFixed(2) + " m<br>" +
+          "Altura cadastrada: " + escapeHtml(height == null ? "não informada" : height + " m") + "<br>" +
+          "Status: " + escapeHtml(p.verification_status || "desconhecido") + "<br>" +
+          "<em>Confirme os dados e a sinalização local antes de circular.</em>"
+        )
+        .addTo(markerLayer);
+
+      count++;
+    });
+
+    // Restrições rodoviárias
+    (restrictions.data || []).forEach(p => {
+      if (p.latitude == null || p.longitude == null) return;
+
+      const verified = p.verification_status === "verified";
+      const maxHeight = p.max_height_m;
+      let alertText;
+      let color;
+
+      if (!verified) {
+        alertText = "RESTRIÇÃO NÃO VERIFICADA";
+        color = "#777777";
+      } else if (maxHeight == null) {
+        alertText = "LIMITE DE ALTURA DESCONHECIDO: TRATAR COMO RISCO";
+        color = "#b3261e";
+      } else if (Number(maxHeight) < threshold) {
+        alertText = "ALERTA DE ALTURA (margem de " + SAFETY_MARGIN_M.toFixed(2) + " m)";
+        color = "#b3261e";
+      } else {
+        alertText = "Verificar outras restrições";
+        color = "#176b3a";
       }
-    )
-      .bindPopup(
-        "<strong>" + escapeHtml(p.name || "Ponte/viaduto") + "</strong><br>" +
-        escapeHtml(p.road_name || "") + "<br>" +
-        "<strong>" + escapeHtml(alertText) + "</strong><br>" +
-        "Altura do veículo: " + truckHeight.toFixed(2) + " m<br>" +
-        "Altura cadastrada: " +
-        escapeHtml(height == null ? "não informada" : height + " m") + "<br>" +
-        "Status: " + escapeHtml(p.verification_status || "desconhecido") + "<br>" +
-        "<em>Confirme os dados e a sinalização local antes de circular.</em>"
-      )
-      .addTo(markerLayer);
 
-    count++;
-  });
-
-  // Marcadores de restrições rodoviárias
-  (restrictions.data || []).forEach(p => {
-    if (p.latitude == null || p.longitude == null) return;
-
-    const verified = p.verification_status === "verified";
-    const maxHeight = p.max_height_m;
-
-    let alertText;
-    let color;
-
-    if (!verified) {
-      alertText = "RESTRIÇÃO NÃO VERIFICADA";
-      color = "#777777";
-    } else if (maxHeight == null) {
-      alertText = "Limite de altura desconhecido";
-      color = "#b26a00";
-    } else if (Number(maxHeight) <= truckHeight) {
-      alertText = "ALERTA DE ALTURA";
-      color = "#b3261e";
-    } else {
-      alertText = "Verificar outras restrições";
-      color = "#176b3a";
-    }
-
-    L.circleMarker(
-      [p.latitude, p.longitude],
-      {
+      L.circleMarker([p.latitude, p.longitude], {
         radius: 9,
         color: color,
         fillColor: color,
         fillOpacity: 0.85
-      }
-    )
-      .bindPopup(
-        "<strong>Restrição: " +
-        escapeHtml(p.restriction_type || "não especificada") +
-        "</strong><br>" +
-        escapeHtml(p.road_name || "") + "<br>" +
-        escapeHtml(p.description || "") + "<br>" +
-        "<strong>" + escapeHtml(alertText) + "</strong><br>" +
-        "Altura do veículo: " + truckHeight.toFixed(2) + " m<br>" +
-        "Limite cadastrado: " +
-        escapeHtml(maxHeight == null ? "não informado" : maxHeight + " m") +
-        "<br>Status: " +
-        escapeHtml(p.verification_status || "desconhecido") +
-        "<br><em>Não use dados não verificados para decidir uma rota.</em>"
-      )
-      .addTo(markerLayer);
+      })
+        .bindPopup(
+          "<strong>Restrição: " + escapeHtml(p.restriction_type || "não especificada") + "</strong><br>" +
+          escapeHtml(p.road_name || "") + "<br>" +
+          escapeHtml(p.description || "") + "<br>" +
+          "<strong>" + escapeHtml(alertText) + "</strong><br>" +
+          "Altura do veículo: " + truckHeight.toFixed(2) + " m<br>" +
+          "Limite cadastrado: " + escapeHtml(maxHeight == null ? "não informado" : maxHeight + " m") + "<br>" +
+          "Status: " + escapeHtml(p.verification_status || "desconhecido") + "<br>" +
+          "<em>Não use dados não verificados para decidir uma rota.</em>"
+        )
+        .addTo(markerLayer);
 
-    count++;
-  });
+      count++;
+    });
 
-  setStatus(
-    "Conectado. " + count +
-    " ponto(s) carregado(s). Confira o status de verificação de cada registro."
-  );
-}
-  async function logout() {
-    if (supabaseClient) await supabaseClient.auth.signOut();
-    setStatus("Você saiu da conta.");
+    setStatus(
+      "Conectado. " + count + " ponto(s) carregado(s). " +
+      "Confira o status de verificação de cada registro."
+    );
   }
-  document.getElementById("signupBtn").addEventListener("click", signup);
-  document.getElementById("loginBtn").addEventListener("click", login);
-  document.getElementById("saveProfileBtn").addEventListener("click", saveProfile);
-  document.getElementById("locateBtn").addEventListener("click", locate);
-  document.getElementById("refreshBtn").addEventListener("click", loadRoadData);
-  document.getElementById("logoutBtn").addEventListener("click", logout);
- 
+
+  // Ligação dos botões (com tratamento de erro)
+  function onClick(id, fn) {
+    document.getElementById(id).addEventListener("click", async () => {
+      try {
+        await fn();
+      } catch (e) {
+        setStatus("Erro inesperado: " + e.message);
+      }
+    });
+  }
+
+  onClick("signupBtn", signup);
+  onClick("loginBtn", login);
+  onClick("saveProfileBtn", saveProfile);
+  onClick("locateBtn", locate);
+  onClick("refreshBtn", loadRoadData);
+  onClick("logoutBtn", logout);
+
+  updateHeightPill();
 </script>
 
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"55d6c902a8a143b1ab6c5051b2a1f75b","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
