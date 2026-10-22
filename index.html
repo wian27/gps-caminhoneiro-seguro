@@ -7,48 +7,89 @@
   <title>GPS Caminhoneiro Seguro</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <style>
-    :root { --green:#123b2a; --green2:#1e6848; --bg:#f3f6f4; --text:#17231d; --red:#a92929; --amber:#855800; }
-    * { box-sizing:border-box; }
-    body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text); }
-    header { background:var(--green); color:white; padding:18px 16px; }
-    header h1 { margin:0; font-size:1.25rem; }
-    header p { margin:6px 0 0; font-size:.92rem; opacity:.9; }
-    main { max-width:1100px; margin:auto; padding:14px; display:grid; gap:14px; }
-    .card { background:white; border-radius:14px; padding:16px; box-shadow:0 2px 10px #0000000b; }
-    h2 { margin:0 0 12px; font-size:1.05rem; }
-    label { display:block; font-weight:600; font-size:.9rem; margin:10px 0 5px; }
-    input,button { width:100%; padding:12px; border:1px solid #ccd6cf; border-radius:9px; font:inherit; }
-    button { background:var(--green2); color:white; border:0; font-weight:700; margin-top:10px; cursor:pointer; }
-    button.secondary { background:#e7eee9; color:var(--green); }
-    button.danger { background:var(--red); }
-    .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-    #map { height:52vh; min-height:320px; border-radius:12px; overflow:hidden; background:#dfe8e2; }
-    .status { padding:10px 12px; border-radius:9px; background:#eef4ef; font-size:.92rem; white-space:pre-wrap; overflow-wrap:anywhere; }
-    .warning { color:#6e4700; background:#fff4d8; padding:10px; border-radius:9px; font-size:.9rem; }
-    .small { font-size:.82rem; color:#59675e; }
-    .hidden { display:none !important; }
-    .pill { display:inline-block; background:#e7eee9; color:var(--green); padding:4px 8px; border-radius:99px; font-size:.8rem; margin:2px; }
-    @media(min-width:800px) { main { grid-template-columns:340px 1fr; align-items:start; } .map-card { grid-column:2; grid-row:1 / span 3; } }
+    :root { --green:#123b2a; --green2:#1e6848; --bg:#f3f6f4; --text:#17231d; --red:#a92929; --amber:#855800; --line:#ccd6cf; }
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
+    header{background:var(--green);color:#fff;padding:15px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    header h1{margin:0;font-size:1.2rem} header p{margin:4px 0 0;font-size:.86rem;opacity:.9}
+    #menuBtn{width:auto;margin:0;padding:10px 13px;background:#ffffff1a;border:1px solid #ffffff66}
+    main{max-width:1180px;margin:auto;padding:14px;display:grid;gap:14px}.card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 10px #0000000b}
+    h2,h3{margin:0 0 12px}h2{font-size:1.06rem}h3{font-size:1rem}label{display:block;font-weight:650;font-size:.9rem;margin:10px 0 5px}
+    input,button{width:100%;padding:12px;border:1px solid var(--line);border-radius:9px;font:inherit}button{background:var(--green2);color:#fff;border:0;font-weight:700;margin-top:10px;cursor:pointer}
+    button:hover{filter:brightness(.96)}button.secondary{background:#e7eee9;color:var(--green)}button.danger{background:var(--red)}button.small-btn{width:auto;padding:8px 10px;margin:0;font-size:.87rem}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.actions button{width:auto;margin:0;flex:1;min-width:140px}
+    #map{height:57vh;min-height:360px;border-radius:12px;overflow:hidden;background:#dfe8e2}.status,.summary{padding:11px 12px;border-radius:9px;background:#eef4ef;font-size:.92rem;white-space:pre-wrap;overflow-wrap:anywhere}
+    .summary{margin-top:12px;background:#edf7f0}.warning{color:#6e4700;background:#fff4d8;padding:10px;border-radius:9px;font-size:.9rem}.danger-note{background:#fff0f0;color:#7b2222;padding:10px;border-radius:9px;font-size:.88rem;margin-top:10px}
+    .small{font-size:.82rem;color:#59675e}.hidden{display:none!important}.pill{display:inline-block;background:#e7eee9;color:var(--green);padding:4px 8px;border-radius:99px;font-size:.8rem;margin:2px}
+    .stop-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-top:8px}.stop-row button{width:auto;margin:0;padding:12px}.switch-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid #e6ece8}.switch-row label{margin:0}.switch{width:46px;height:25px;accent-color:var(--green2)}
+    .drawer-backdrop{position:fixed;inset:0;background:#0007;z-index:1000}.drawer{position:fixed;top:0;right:0;width:min(410px,93vw);height:100vh;overflow:auto;background:#fff;z-index:1001;padding:18px;box-shadow:-4px 0 20px #0003}.drawer-head{display:flex;justify-content:space-between;align-items:center}.drawer-head button{width:auto;margin:0;background:#e7eee9;color:var(--green)}
+    .menu-section{border-top:1px solid #e5ece7;margin-top:15px;padding-top:15px}.menu-section:first-of-type{border:0;margin-top:5px}.profile-email{font-size:.9rem;color:#59675e}
+    .route-card{display:grid;gap:4px}.nav-banner{background:#123b2a;color:#fff;border-radius:12px;padding:13px;margin-bottom:12px}.nav-banner strong{display:block}.loader{display:inline-block;width:15px;height:15px;border:2px solid #cddbd3;border-top-color:var(--green2);border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px}@keyframes spin{to{transform:rotate(360deg)}}
+    @media(min-width:850px){main{grid-template-columns:350px 1fr;align-items:start}.map-card{grid-column:2;grid-row:1 / span 4}.route-card{grid-column:1}.system-card{grid-column:1}}
+    @media(max-width:480px){.row{grid-template-columns:1fr}.actions button{min-width:100%}}
   </style>
 </head>
 <body>
 <header>
-  <h1>🚛 GPS Caminhoneiro Seguro</h1>
-  <p>Protótipo inicial · perfil sider de 4,40 m · Brasil</p>
+  <div><h1>🚛 GPS Caminhoneiro Seguro</h1><p>Planejamento de rota com atenção a restrições cadastradas</p></div>
+  <button id="menuBtn" class="hidden" aria-label="Abrir menu">☰ Menu</button>
 </header>
+
 <main>
   <section class="card" id="authCard">
     <h2>Entrar ou criar conta</h2>
     <label for="email">E-mail</label><input id="email" type="email" autocomplete="email" placeholder="voce@exemplo.com">
     <label for="password">Senha (mínimo 6 caracteres)</label><input id="password" type="password" autocomplete="current-password" placeholder="Sua senha">
-    <button id="signupBtn">Criar conta</button>
-    <button id="loginBtn" class="secondary">Entrar</button>
-    <p class="small">A conta será criada no Supabase. Se a confirmação de e-mail estiver ativa, confira sua caixa de entrada.</p>
+    <button id="signupBtn">Criar conta</button><button id="loginBtn" class="secondary">Entrar</button>
+    <p class="small">Caso a confirmação de e-mail esteja ativa no Supabase, confirme o cadastro antes de entrar.</p>
   </section>
 
-  <section class="card hidden" id="profileCard">
-    <h2>Meu caminhão</h2>
-    <div class="status" id="userStatus">Conectado.</div>
+  <section class="card route-card hidden" id="routeCard">
+    <h2>Planejar viagem</h2>
+    <label for="origin">Origem</label>
+    <input id="origin" autocomplete="street-address" placeholder="Ex.: São Paulo, SP">
+    <button id="originLocationBtn" class="secondary">Usar minha localização como origem</button>
+    <label for="destination">Destino</label>
+    <input id="destination" autocomplete="street-address" placeholder="Ex.: Curitiba, PR">
+    <div>
+      <label>Paradas opcionais</label>
+      <div id="stops"></div>
+      <button id="addStopBtn" class="secondary">+ Adicionar parada</button>
+    </div>
+    <div class="actions">
+      <button id="calculateRouteBtn">Calcular rota e tempo</button>
+      <button id="clearRouteBtn" class="secondary">Limpar rota</button>
+    </div>
+    <div class="summary hidden" id="routeSummary"></div>
+    <div class="danger-note"><strong>Atenção:</strong> a rota é calculada para vias comuns, não para perfil de caminhão. Antes de dirigir, confirme altura, peso, largura, restrições, sinalização e condições da rodovia.</div>
+    <div class="actions">
+      <button id="startNavBtn" disabled>▶ Iniciar navegação</button>
+      <button id="stopNavBtn" class="danger" disabled>■ Encerrar navegação</button>
+    </div>
+  </section>
+
+  <section class="card system-card">
+    <h2>Estado do sistema</h2>
+    <div id="status" class="status">Iniciando mapa…</div>
+    <p class="small"><span class="pill">OpenStreetMap</span><span class="pill">Supabase</span><span class="pill" id="heightPill">Altura 4,40 m</span></p>
+    <div class="warning"><strong>Importante:</strong> este site é uma ferramenta de apoio e não é um GPS certificado para veículos pesados. Dados ausentes, desconhecidos ou não verificados devem ser tratados como risco.</div>
+  </section>
+
+  <section class="card map-card">
+    <div id="navBanner" class="nav-banner hidden"><strong>Navegação em andamento</strong><span id="navText">Aguardando localização…</span></div>
+    <h2>Mapa, rota e pontos de atenção</h2><div id="map"></div>
+    <p class="small">A rota e o tempo são estimativas. Os marcadores mostram apenas registros existentes no banco de dados.</p>
+  </section>
+</main>
+
+<div id="backdrop" class="drawer-backdrop hidden"></div>
+<aside id="drawer" class="drawer hidden" aria-label="Menu">
+  <div class="drawer-head"><h2>Minha conta</h2><button id="closeMenuBtn" aria-label="Fechar menu">✕</button></div>
+  <div class="menu-section">
+    <h3>Perfil do usuário</h3>
+    <div class="profile-email" id="userStatus">Faça login para ver seu perfil.</div>
+  </div>
+  <div class="menu-section">
+    <h3>Meu caminhão</h3>
     <label for="vehicleName">Tipo de veículo</label><input id="vehicleName" value="Carreta sider">
     <div class="row">
       <div><label for="height">Altura (m)</label><input id="height" type="number" step="0.01" min="0.1" max="10" value="4.40"></div>
@@ -58,381 +99,162 @@
       <div><label for="length">Comprimento (m)</label><input id="length" type="number" step="0.01" min="0.1" placeholder="Opcional"></div>
       <div><label for="weight">Peso total (t)</label><input id="weight" type="number" step="0.01" min="0.1" placeholder="Opcional"></div>
     </div>
-    <button id="saveProfileBtn">Salvar perfil</button>
+    <button id="saveProfileBtn">Salvar perfil do caminhão</button>
+  </div>
+  <div class="menu-section">
+    <h3>Configurações</h3>
+    <div class="switch-row"><label for="voiceEnabled">Orientação por voz</label><input class="switch" id="voiceEnabled" type="checkbox"></div>
+    <div class="switch-row"><label for="followLocation">Acompanhar minha localização durante a navegação</label><input class="switch" id="followLocation" type="checkbox" checked></div>
+    <button id="testVoiceBtn" class="secondary">Testar orientação por voz</button>
     <button id="locateBtn" class="secondary">Mostrar minha localização</button>
     <button id="refreshBtn" class="secondary">Atualizar pontos cadastrados</button>
-    <button id="logoutBtn" class="danger">Sair da conta</button>
-  </section>
-
-  <section class="card">
-    <h2>Estado do sistema</h2>
-    <div id="status" class="status">Configure a URL e a chave pública do Supabase neste arquivo para começar.</div>
-    <p class="small"><span class="pill">Mapa OpenStreetMap</span><span class="pill">Supabase</span><span class="pill" id="heightPill">Altura 4,40 m</span></p>
-    <div class="warning"><strong>Importante:</strong> este protótipo não é um GPS de navegação certificado. Não use para decidir se uma passagem é segura. Os dados podem estar incompletos; altura desconhecida deve ser tratada como risco.</div>
-  </section>
-
-  <section class="card map-card">
-    <h2>Mapa e pontos de atenção</h2>
-    <div id="map"></div>
-    <p class="small">Os marcadores mostram somente registros que já existirem no banco. O mapa não contém automaticamente todos os viadutos do Brasil.</p>
-  </section>
-</main>
+  </div>
+  <div class="menu-section"><button id="logoutBtn" class="danger">Sair da conta</button></div>
+</aside>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-  // PASSO OBRIGATÓRIO: substitua os dois valores abaixo pelos dados do SEU projeto.
-  // Use a Project URL e a chave Publishable (sb_publishable_...).
-  // Nunca coloque Secret key ou service_role neste arquivo.
+  // Use apenas a Project URL e a chave Publishable. Nunca exponha service_role / secret key.
   const SUPABASE_URL = "https://paiijqyfozhanqdihhph.supabase.co";
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_wee3DURgbdJQC7xXOJsSCQ_mhRrH6w1";
+  const DEFAULT_HEIGHT_M = 4.40, SAFETY_MARGIN_M = 0.20, SETTINGS_KEY = "gps-caminhoneiro-settings-v1";
 
-  // Margem de segurança somada à altura do veículo (carga, pneus, suspensão).
-  const SAFETY_MARGIN_M = 0.20;
-  const DEFAULT_HEIGHT_M = 4.40;
+  const $ = id => document.getElementById(id);
+  const statusBox=$("status"), authCard=$("authCard"), routeCard=$("routeCard"), heightInput=$("height"), heightPill=$("heightPill");
+  let supabaseClient=null, currentUser=null, userMarker=null, routeLine=null, routeMarkers=[], markerLayer, routeData=null, navigationWatchId=null, lastSpokenStep=-1, lastDistanceAnnouncement=0;
+  const settings=Object.assign({voiceEnabled:false,followLocation:true}, JSON.parse(localStorage.getItem(SETTINGS_KEY)||"{}"));
+  $("voiceEnabled").checked=settings.voiceEnabled; $("followLocation").checked=settings.followLocation;
 
-  const statusBox = document.getElementById("status");
-  const authCard = document.getElementById("authCard");
-  const profileCard = document.getElementById("profileCard");
-  const heightInput = document.getElementById("height");
-  const heightPill = document.getElementById("heightPill");
+  function setStatus(msg){statusBox.textContent=msg}
+  function escapeHtml(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+  function configured(){return /^https:\/\/[a-zA-Z0-9-]+\.supabase\.co\/?$/.test(SUPABASE_URL)&&SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")}
+  function truckHeight(){const h=Number(heightInput.value);return h>0&&h<=10?h:DEFAULT_HEIGHT_M}
+  function updateHeightPill(){heightPill.textContent="Altura "+truckHeight().toFixed(2).replace(".",",")+" m"}
+  function formatDistance(m){return m>=1000?(m/1000).toFixed(1).replace(".",",")+" km":Math.round(m)+" m"}
+  function formatTime(sec){const h=Math.floor(sec/3600),m=Math.round((sec%3600)/60);return h?`${h} h ${m} min`:`${m} min`}
+  function saveSettings(){settings.voiceEnabled=$("voiceEnabled").checked;settings.followLocation=$("followLocation").checked;localStorage.setItem(SETTINGS_KEY,JSON.stringify(settings))}
+  function speak(text,force=false){if((!settings.voiceEnabled&&!force)||!window.speechSynthesis)return;window.speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang="pt-BR";u.rate=.95;window.speechSynthesis.speak(u)}
+  function openMenu(){ $("drawer").classList.remove("hidden");$("backdrop").classList.remove("hidden") }
+  function closeMenu(){ $("drawer").classList.add("hidden");$("backdrop").classList.add("hidden") }
+  function onClick(id,fn){$(id).addEventListener("click",async()=>{try{await fn()}catch(e){setStatus("Erro: "+(e.message||e))}})}
 
-  let supabaseClient = null;
-  let currentUser = null;
-  let userMarker = null;
+  const map=L.map("map").setView([-14.235,-51.9253],4);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"&copy; OpenStreetMap contributors"}).addTo(map);
+  markerLayer=L.layerGroup().addTo(map);
 
-  function setStatus(message) {
-    statusBox.textContent = message;
+  function addStop(value=""){
+    const row=document.createElement("div");row.className="stop-row";
+    row.innerHTML='<input class="stop-input" placeholder="Cidade, endereço ou ponto de parada" value="'+escapeHtml(value)+'"><button type="button" class="danger remove-stop" title="Remover parada">✕</button>';
+    row.querySelector(".remove-stop").addEventListener("click",()=>row.remove());$("stops").appendChild(row);
   }
-
-  function escapeHtml(value) {
-    return String(value).replace(/[&<>"']/g, c => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[c]));
+  async function geocode(query){
+    const r=await fetch("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=br&q="+encodeURIComponent(query),{headers:{"Accept-Language":"pt-BR"}});
+    if(!r.ok)throw new Error("Não foi possível localizar o endereço.");
+    const d=await r.json();if(!d.length)throw new Error("Endereço não encontrado: "+query);
+    return {lat:Number(d[0].lat),lon:Number(d[0].lon),name:d[0].display_name};
   }
-
-  function configured() {
-    return (
-      typeof SUPABASE_URL === "string" &&
-      /^https:\/\/[a-zA-Z0-9-]+\.supabase\.co\/?$/.test(SUPABASE_URL) &&
-      typeof SUPABASE_PUBLISHABLE_KEY === "string" &&
-      SUPABASE_PUBLISHABLE_KEY.startsWith("sb_publishable_")
-    );
+  function clearRoute(){
+    if(routeLine){map.removeLayer(routeLine);routeLine=null}routeMarkers.forEach(m=>map.removeLayer(m));routeMarkers=[];routeData=null;
+    $("routeSummary").classList.add("hidden");$("routeSummary").textContent="";$("startNavBtn").disabled=true;
   }
-
-  function getTruckHeight() {
-    const h = Number(heightInput.value);
-    return h > 0 && h <= 10 ? h : DEFAULT_HEIGHT_M;
+  function addRouteMarker(point,label,color){
+    const m=L.marker([point.lat,point.lon],{icon:L.divIcon({className:"",html:`<div style="background:${color};color:#fff;border-radius:50%;width:28px;height:28px;display:grid;place-items:center;font-weight:700;border:2px solid #fff;box-shadow:0 1px 4px #0006">${label}</div>`,iconSize:[28,28],iconAnchor:[14,14]})}).addTo(map);
+    routeMarkers.push(m);
   }
-
-  function updateHeightPill() {
-    heightPill.textContent = "Altura " + getTruckHeight().toFixed(2).replace(".", ",") + " m";
+  async function calculateRoute(){
+    const origin=$("origin").value.trim(),destination=$("destination").value.trim(),stops=[...document.querySelectorAll(".stop-input")].map(i=>i.value.trim()).filter(Boolean);
+    if(!origin||!destination){setStatus("Informe origem e destino.");return}
+    clearRoute();setStatus("Localizando endereços e calculando a rota… <span class='loader'></span>");
+    const places=[];
+    for(const q of [origin,...stops,destination]) places.push(await geocode(q));
+    const coords=places.map(p=>`${p.lon},${p.lat}`).join(";");
+    const response=await fetch("https://router.project-osrm.org/route/v1/driving/"+coords+"?overview=full&geometries=geojson&steps=true");
+    if(!response.ok)throw new Error("O serviço de rotas não respondeu.");
+    const data=await response.json();if(data.code!=="Ok"||!data.routes?.length)throw new Error("Não foi possível calcular essa rota.");
+    routeData={route:data.routes[0],places};
+    const latlngs=routeData.route.geometry.coordinates.map(c=>[c[1],c[0]]);
+    routeLine=L.polyline(latlngs,{color:"#1e6848",weight:5,opacity:.85}).addTo(map);map.fitBounds(routeLine.getBounds(),{padding:[30,30]});
+    places.forEach((p,i)=>addRouteMarker(p,i===0?"O":i===places.length-1?"D":String(i),"#123b2a"));
+    $("routeSummary").textContent="Distância estimada: "+formatDistance(routeData.route.distance)+"\nTempo estimado: "+formatTime(routeData.route.duration)+(stops.length?`\nParadas incluídas: ${stops.length}`:"");
+    $("routeSummary").classList.remove("hidden");$("startNavBtn").disabled=false;
+    setStatus("Rota calculada. Confira os alertas, a sinalização e as restrições antes de sair.");
   }
-
-  heightInput.addEventListener("input", updateHeightPill);
-
-  // Mapa
-  const map = L.map("map").setView([-14.235, -51.9253], 4);
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 19,
-    attribution: "&copy; OpenStreetMap contributors"
-  }).addTo(map);
-  const markerLayer = L.layerGroup().addTo(map);
-
-  // Inicialização do Supabase
-  if (configured()) {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
-
-    supabaseClient.auth.getSession().then(({ data, error }) => {
-      if (error) {
-        setStatus("Erro ao verificar sessão: " + error.message);
-        return;
-      }
-      if (data?.session) showLoggedIn(data.session.user);
-      else setStatus("Supabase configurado. Entre ou crie sua conta.");
-    });
-
-    supabaseClient.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        showLoggedIn(session.user);
-      } else {
-        currentUser = null;
-        markerLayer.clearLayers();
-        authCard.classList.remove("hidden");
-        profileCard.classList.add("hidden");
-      }
-    });
-  } else {
-    setStatus("Falta configurar a URL e a chave Publishable no início do arquivo HTML. Não compartilhe chaves secretas.");
+  function haversine(a,b){const R=6371000,t=Math.PI/180,dLat=(b.lat-a.lat)*t,dLon=(b.lon-a.lon)*t,x=Math.sin(dLat/2)**2+Math.cos(a.lat*t)*Math.cos(b.lat*t)*Math.sin(dLon/2)**2;return 2*R*Math.asin(Math.sqrt(x))}
+  function nearestStep(position){
+    const steps=routeData?.route?.legs?.flatMap(l=>l.steps)||[];let best=null,bestD=Infinity;
+    steps.forEach((s,i)=>{const p={lat:s.maneuver.location[1],lon:s.maneuver.location[0]};const d=haversine(position,p);if(d<bestD){bestD=d;best={s,i,d}}});return best;
   }
-
-  // Autenticação
-  async function signup() {
-    if (!supabaseClient) return setStatus("Configure primeiro a URL e a chave Publishable no arquivo HTML.");
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value;
-    if (!email || password.length < 6) return setStatus("Digite um e-mail válido e uma senha com pelo menos 6 caracteres.");
-    const { error } = await supabaseClient.auth.signUp({ email, password });
-    setStatus(error
-      ? "Erro ao criar conta: " + error.message
-      : "Pedido de cadastro enviado. Se a confirmação de e-mail estiver ativa, confirme o e-mail e depois entre.");
+  function startNavigation(){
+    if(!routeData)return; if(!navigator.geolocation){setStatus("Geolocalização não disponível neste navegador.");return}
+    if(navigationWatchId!==null)navigator.geolocation.clearWatch(navigationWatchId);
+    lastSpokenStep=-1;lastDistanceAnnouncement=0;$("navBanner").classList.remove("hidden");$("startNavBtn").disabled=true;$("stopNavBtn").disabled=false;
+    speak("Navegação iniciada. Dirija com segurança e siga a sinalização local.");setStatus("Navegação iniciada. A localização será acompanhada enquanto esta opção estiver ativa.");
+    navigationWatchId=navigator.geolocation.watchPosition(pos=>{
+      const p={lat:pos.coords.latitude,lon:pos.coords.longitude};
+      if(userMarker)userMarker.setLatLng([p.lat,p.lon]);else userMarker=L.circleMarker([p.lat,p.lon],{radius:8,color:"#166b3a",fillColor:"#166b3a",fillOpacity:.9}).addTo(map).bindPopup("Sua localização");
+      if(settings.followLocation)map.setView([p.lat,p.lon],Math.max(map.getZoom(),14));
+      const dest=routeData.places[routeData.places.length-1],distance=haversine(p,dest),near=nearestStep(p);
+      $("navText").textContent=distance<80?"Você chegou próximo ao destino.":`Distância aproximada até o destino: ${formatDistance(distance)}.`;
+      if(distance<80){speak("Você chegou próximo ao destino.");stopNavigation();return}
+      if(near&&near.d<120&&near.i!==lastSpokenStep){lastSpokenStep=near.i;const mod=near.s.maneuver.modifier?(" "+near.s.maneuver.modifier):"";speak("Em breve, "+(near.s.maneuver.type==="turn"?"vire":"siga")+mod+".")}
+      if(Date.now()-lastDistanceAnnouncement>300000){lastDistanceAnnouncement=Date.now();speak("Faltam aproximadamente "+formatDistance(distance)+" até o destino.")}
+    },err=>setStatus("Erro de localização durante navegação: "+err.message),{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
   }
-
-  async function login() {
-    if (!supabaseClient) return setStatus("Configure primeiro a URL e a chave Publishable no arquivo HTML.");
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value;
-    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (error) setStatus("Erro ao entrar: " + error.message);
-    else if (data?.user) await showLoggedIn(data.user);
+  function stopNavigation(){if(navigationWatchId!==null){navigator.geolocation.clearWatch(navigationWatchId);navigationWatchId=null}window.speechSynthesis?.cancel();$("navBanner").classList.add("hidden");$("startNavBtn").disabled=!routeData;$("stopNavBtn").disabled=true;setStatus("Navegação encerrada.")}
+  function locate(){
+    if(!navigator.geolocation){setStatus("Geolocalização não é suportada neste navegador.");return}
+    navigator.geolocation.getCurrentPosition(pos=>{const p=[pos.coords.latitude,pos.coords.longitude];if(userMarker)userMarker.setLatLng(p);else userMarker=L.circleMarker(p,{radius:8,color:"#166b3a",fillColor:"#166b3a",fillOpacity:.9}).addTo(map).bindPopup("Sua localização");map.setView(p,14);setStatus("Localização exibida no mapa.");},err=>setStatus("Não foi possível obter sua localização: "+err.message),{enableHighAccuracy:true,timeout:10000});
   }
-
-  async function logout() {
-    if (supabaseClient) await supabaseClient.auth.signOut();
-    setStatus("Você saiu da conta.");
+  function useOriginLocation(){
+    if(!navigator.geolocation){setStatus("Geolocalização não é suportada.");return}
+    navigator.geolocation.getCurrentPosition(pos=>{$("origin").value=pos.coords.latitude.toFixed(6)+", "+pos.coords.longitude.toFixed(6);setStatus("Localização atual definida como origem. Agora informe o destino.");},err=>setStatus("Não foi possível usar a localização: "+err.message),{enableHighAccuracy:true,timeout:10000});
   }
-
-  async function showLoggedIn(user) {
-    // Evita carregar os dados duas vezes (login + onAuthStateChange).
-    if (currentUser && currentUser.id === user.id) return;
-
-    currentUser = user;
-    authCard.classList.add("hidden");
-    profileCard.classList.remove("hidden");
-    document.getElementById("userStatus").textContent = "Conectado como " + (user.email || "usuário autenticado");
-    setStatus("Conectado. Carregando dados cadastrados...");
-
-    try {
-      await loadProfile();
-      await loadRoadData();
-    } catch (e) {
-      setStatus("Erro ao carregar dados: " + e.message);
-    }
+  async function geocodeFlexible(q){
+    const match=q.match(/^\s*(-?\d+(\.\d+)?)\s*,\s*(-?\d+(\.\d+)?)\s*$/);return match?{lat:Number(match[1]),lon:Number(match[3]),name:"Localização atual"}:geocode(q);
   }
+  // Sobrescreve para permitir origem em coordenadas enviadas pelo botão "minha localização".
+  geocode=geocodeFlexible;
 
-  // Perfil do veículo
-  async function loadProfile() {
-    if (!currentUser) return;
-    const { data, error } = await supabaseClient
-      .from("vehicle_profiles")
-      .select("*")
-      .eq("user_id", currentUser.id)
-      .order("created_at", { ascending: false })
-      .limit(1);
-
-    if (error) {
-      setStatus("Não foi possível carregar o perfil: " + error.message);
-      return;
-    }
-
-    if (data && data.length) {
-      const p = data[0];
-      document.getElementById("vehicleName").value = p.vehicle_name || "Carreta sider";
-      heightInput.value = p.height_m ?? DEFAULT_HEIGHT_M;
-      document.getElementById("width").value = p.width_m ?? "";
-      document.getElementById("length").value = p.length_m ?? "";
-      document.getElementById("weight").value = p.gross_weight_t ?? "";
-      updateHeightPill();
-    }
+  async function loadProfile(){
+    const {data,error}=await supabaseClient.from("vehicle_profiles").select("*").eq("user_id",currentUser.id).order("created_at",{ascending:false}).limit(1);
+    if(error){setStatus("Não foi possível carregar o perfil: "+error.message);return}
+    if(data?.length){const p=data[0];$("vehicleName").value=p.vehicle_name||"Carreta sider";heightInput.value=p.height_m??DEFAULT_HEIGHT_M;$("width").value=p.width_m??"";$("length").value=p.length_m??"";$("weight").value=p.gross_weight_t??"";updateHeightPill()}
   }
-
-  function optionalNumber(id) {
-    const v = document.getElementById(id).value.trim();
-    return v === "" ? null : Number(v);
+  function optionalNumber(id){const v=$(id).value.trim();return v===""?null:Number(v)}
+  async function saveProfile(){
+    if(!currentUser)return;const height=truckHeight();if(!(height>0&&height<=10))throw new Error("Informe uma altura válida.");
+    const payload={user_id:currentUser.id,vehicle_name:$("vehicleName").value.trim()||"Carreta sider",height_m:height,width_m:optionalNumber("width"),length_m:optionalNumber("length"),gross_weight_t:optionalNumber("weight")};
+    const existing=await supabaseClient.from("vehicle_profiles").select("id").eq("user_id",currentUser.id).limit(1);
+    const result=existing.data?.length?await supabaseClient.from("vehicle_profiles").update(payload).eq("id",existing.data[0].id):await supabaseClient.from("vehicle_profiles").insert(payload);
+    if(result.error)throw new Error(result.error.message);updateHeightPill();setStatus("Perfil do caminhão salvo.");await loadRoadData();
   }
-
-  async function saveProfile() {
-    if (!currentUser) return setStatus("Entre na sua conta primeiro.");
-
-    const height = Number(heightInput.value);
-    if (!(height > 0 && height <= 10)) return setStatus("Informe uma altura válida em metros (entre 0,1 e 10).");
-
-    const payload = {
-      user_id: currentUser.id,
-      vehicle_name: document.getElementById("vehicleName").value.trim() || "Carreta sider",
-      height_m: height,
-      width_m: optionalNumber("width"),
-      length_m: optionalNumber("length"),
-      gross_weight_t: optionalNumber("weight")
-    };
-
-    // Requer restrição UNIQUE em vehicle_profiles.user_id (veja a observação no chat).
-    const { error } = await supabaseClient
-      .from("vehicle_profiles")
-      .upsert(payload, { onConflict: "user_id" });
-
-    if (error) {
-      setStatus("Erro ao salvar perfil: " + error.message);
-      return;
-    }
-
-    updateHeightPill();
-    setStatus("Perfil salvo. Altura configurada: " + height.toFixed(2) + " m.");
-    await loadRoadData();
+  async function loadRoadData(){
+    if(!currentUser||!supabaseClient)return;markerLayer.clearLayers();const h=truckHeight(),limit=h+SAFETY_MARGIN_M;
+    const [clearances,restrictions]=await Promise.all([supabaseClient.from("road_clearances").select("*").limit(500),supabaseClient.from("road_restrictions").select("*").limit(500)]);
+    if(clearances.error||restrictions.error)throw new Error((clearances.error||restrictions.error).message);
+    let count=0;
+    const add=(p,isRestriction)=>{if(p.latitude==null||p.longitude==null)return;const max=isRestriction?p.max_height_m:p.clearance_height_m,verified=p.verification_status==="verified";let text,color;
+      if(!verified){text="DADO NÃO VERIFICADO";color="#777"}else if(max==null){text="ALTURA DESCONHECIDA: TRATAR COMO RISCO";color="#b3261e"}else if(Number(max)<limit){text="ALERTA DE ALTURA: PRÓXIMA/INFERIOR À ALTURA DO VEÍCULO";color="#b3261e"}else{text="Altura cadastrada: "+max+" m";color="#176b3a"}
+      L.circleMarker([p.latitude,p.longitude],{radius:isRestriction?9:8,color,fillColor:color,fillOpacity:.82}).bindPopup("<strong>"+escapeHtml(isRestriction?("Restrição: "+(p.restriction_type||"não especificada")):(p.name||"Ponte/viaduto"))+"</strong><br>"+escapeHtml(p.road_name||"")+"<br><strong>"+escapeHtml(text)+"</strong><br>Altura do veículo: "+h.toFixed(2)+" m<br>Limite cadastrado: "+escapeHtml(max==null?"não informado":max+" m")+"<br>Status: "+escapeHtml(p.verification_status||"desconhecido")+"<br><em>Confirme sinalização e condições locais.</em>").addTo(markerLayer);count++};
+    (clearances.data||[]).forEach(p=>add(p,false));(restrictions.data||[]).forEach(p=>add(p,true));setStatus("Conectado. "+count+" ponto(s) de atenção carregado(s).");
   }
-
-  // Localização do usuário
-  function locate() {
-    if (!navigator.geolocation) {
-      setStatus("Geolocalização não suportada neste navegador.");
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const { latitude, longitude } = pos.coords;
-        if (userMarker) userMarker.remove();
-        userMarker = L.circleMarker([latitude, longitude], {
-          radius: 8,
-          color: "#1e6848",
-          fillColor: "#1e6848",
-          fillOpacity: 0.9
-        }).addTo(map).bindPopup("Você está aqui");
-        map.setView([latitude, longitude], 14);
-        setStatus("Localização exibida no mapa.");
-      },
-      err => setStatus("Não foi possível obter a localização: " + err.message),
-      { enableHighAccuracy: true, timeout: 10000 }
-    );
+  async function showLoggedIn(user){
+    if(currentUser?.id===user.id)return;currentUser=user;authCard.classList.add("hidden");routeCard.classList.remove("hidden");$("menuBtn").classList.remove("hidden");$("userStatus").textContent=user.email||"Usuário autenticado";setStatus("Conectado. Carregando dados…");await loadProfile();await loadRoadData();
   }
+  async function signup(){const email=$("email").value.trim(),password=$("password").value;if(!email||password.length<6)throw new Error("Informe e-mail e senha de pelo menos 6 caracteres.");const {error}=await supabaseClient.auth.signUp({email,password});setStatus(error?"Erro ao criar conta: "+error.message:"Cadastro solicitado. Confira seu e-mail se a confirmação estiver ativa.")}
+  async function login(){const {data,error}=await supabaseClient.auth.signInWithPassword({email:$("email").value.trim(),password:$("password").value});if(error)throw new Error(error.message);if(data.user)await showLoggedIn(data.user)}
+  async function logout(){stopNavigation();await supabaseClient.auth.signOut();closeMenu();setStatus("Você saiu da conta.")}
 
-  // Pontos de pontes, viadutos e restrições
-  async function loadRoadData() {
-    if (!currentUser || !supabaseClient) return;
-
-    markerLayer.clearLayers();
-    setStatus("Carregando pontos cadastrados...");
-
-    const truckHeight = getTruckHeight();
-    const threshold = truckHeight + SAFETY_MARGIN_M;
-
-    const [clearances, restrictions] = await Promise.all([
-      supabaseClient.from("road_clearances").select("*").limit(500),
-      supabaseClient.from("road_restrictions").select("*").limit(500)
-    ]);
-
-    if (clearances.error || restrictions.error) {
-      const error = clearances.error || restrictions.error;
-      setStatus("Erro ao carregar dados rodoviários: " + error.message);
-      return;
-    }
-
-    let count = 0;
-
-    // Pontes e viadutos
-    (clearances.data || []).forEach(p => {
-      if (p.latitude == null || p.longitude == null) return;
-
-      const height = p.clearance_height_m;
-      const verified = p.verification_status === "verified";
-      let alertText;
-      let color;
-
-      if (!verified) {
-        alertText = "DADO NÃO VERIFICADO";
-        color = "#777777";
-      } else if (height == null) {
-        alertText = "ALTURA DESCONHECIDA: TRATAR COMO RISCO";
-        color = "#b3261e";
-      } else if (Number(height) < threshold) {
-        alertText = "ALERTA: ALTURA IGUAL OU PRÓXIMA DO VEÍCULO (margem de " + SAFETY_MARGIN_M.toFixed(2) + " m)";
-        color = "#b3261e";
-      } else {
-        alertText = "Altura cadastrada: " + height + " m";
-        color = "#176b3a";
-      }
-
-      L.circleMarker([p.latitude, p.longitude], {
-        radius: 8,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.8
-      })
-        .bindPopup(
-          "<strong>" + escapeHtml(p.name || "Ponte/viaduto") + "</strong><br>" +
-          escapeHtml(p.road_name || "") + "<br>" +
-          "<strong>" + escapeHtml(alertText) + "</strong><br>" +
-          "Altura do veículo: " + truckHeight.toFixed(2) + " m<br>" +
-          "Altura cadastrada: " + escapeHtml(height == null ? "não informada" : height + " m") + "<br>" +
-          "Status: " + escapeHtml(p.verification_status || "desconhecido") + "<br>" +
-          "<em>Confirme os dados e a sinalização local antes de circular.</em>"
-        )
-        .addTo(markerLayer);
-
-      count++;
-    });
-
-    // Restrições rodoviárias
-    (restrictions.data || []).forEach(p => {
-      if (p.latitude == null || p.longitude == null) return;
-
-      const verified = p.verification_status === "verified";
-      const maxHeight = p.max_height_m;
-      let alertText;
-      let color;
-
-      if (!verified) {
-        alertText = "RESTRIÇÃO NÃO VERIFICADA";
-        color = "#777777";
-      } else if (maxHeight == null) {
-        alertText = "LIMITE DE ALTURA DESCONHECIDO: TRATAR COMO RISCO";
-        color = "#b3261e";
-      } else if (Number(maxHeight) < threshold) {
-        alertText = "ALERTA DE ALTURA (margem de " + SAFETY_MARGIN_M.toFixed(2) + " m)";
-        color = "#b3261e";
-      } else {
-        alertText = "Verificar outras restrições";
-        color = "#176b3a";
-      }
-
-      L.circleMarker([p.latitude, p.longitude], {
-        radius: 9,
-        color: color,
-        fillColor: color,
-        fillOpacity: 0.85
-      })
-        .bindPopup(
-          "<strong>Restrição: " + escapeHtml(p.restriction_type || "não especificada") + "</strong><br>" +
-          escapeHtml(p.road_name || "") + "<br>" +
-          escapeHtml(p.description || "") + "<br>" +
-          "<strong>" + escapeHtml(alertText) + "</strong><br>" +
-          "Altura do veículo: " + truckHeight.toFixed(2) + " m<br>" +
-          "Limite cadastrado: " + escapeHtml(maxHeight == null ? "não informado" : maxHeight + " m") + "<br>" +
-          "Status: " + escapeHtml(p.verification_status || "desconhecido") + "<br>" +
-          "<em>Não use dados não verificados para decidir uma rota.</em>"
-        )
-        .addTo(markerLayer);
-
-      count++;
-    });
-
-    setStatus(
-      "Conectado. " + count + " ponto(s) carregado(s). " +
-      "Confira o status de verificação de cada registro."
-    );
-  }
-
-  // Ligação dos botões (com tratamento de erro)
-  function onClick(id, fn) {
-    document.getElementById(id).addEventListener("click", async () => {
-      try {
-        await fn();
-      } catch (e) {
-        setStatus("Erro inesperado: " + e.message);
-      }
-    });
-  }
-
-  onClick("signupBtn", signup);
-  onClick("loginBtn", login);
-  onClick("saveProfileBtn", saveProfile);
-  onClick("locateBtn", locate);
-  onClick("refreshBtn", loadRoadData);
-  onClick("logoutBtn", logout);
-
+  heightInput.addEventListener("input",updateHeightPill);$("voiceEnabled").addEventListener("change",saveSettings);$("followLocation").addEventListener("change",saveSettings);
+  onClick("menuBtn",openMenu);onClick("closeMenuBtn",closeMenu);$("backdrop").addEventListener("click",closeMenu);onClick("addStopBtn",()=>addStop());onClick("calculateRouteBtn",calculateRoute);onClick("clearRouteBtn",clearRoute);onClick("startNavBtn",startNavigation);onClick("stopNavBtn",stopNavigation);onClick("originLocationBtn",useOriginLocation);onClick("locateBtn",locate);onClick("testVoiceBtn",()=>speak("Orientação por voz ativada. Dirija com segurança.",true));onClick("saveProfileBtn",saveProfile);onClick("refreshBtn",loadRoadData);onClick("signupBtn",signup);onClick("loginBtn",login);onClick("logoutBtn",logout);
   updateHeightPill();
+  if(configured()){
+    supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+    supabaseClient.auth.getSession().then(({data,error})=>{if(error)setStatus("Erro ao verificar sessão: "+error.message);else if(data.session)showLoggedIn(data.session.user);else setStatus("Supabase configurado. Entre ou crie sua conta.")});
+    supabaseClient.auth.onAuthStateChange((_event,session)=>{if(session)showLoggedIn(session.user);else{currentUser=null;markerLayer.clearLayers();authCard.classList.remove("hidden");routeCard.classList.add("hidden");$("menuBtn").classList.add("hidden")}})
+  }else setStatus("Configure a URL e a chave Publishable do Supabase. Nunca use chave secreta no navegador.");
 </script>
-
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"55d6c902a8a143b1ab6c5051b2a1f75b","spa":2}' crossorigin="anonymous"></script>
 </body>
 </html>
