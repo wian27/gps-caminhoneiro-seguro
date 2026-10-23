@@ -5,97 +5,340 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GPS Caminhoneiro Seguro</title>
 
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    * { box-sizing: border-box; }
-    body { margin: 0; font-family: Arial, sans-serif; background: #f3f5f4; color: #17231c; }
-    #map { position: fixed; inset: 58px 0 0 0; z-index: 1; }
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f3f5f4;
+      color: #17231c;
+    }
+
+    #map {
+      position: fixed;
+      inset: 58px 0 0 0;
+      z-index: 1;
+    }
 
     .topbar {
-      height: 58px; position: fixed; z-index: 2000; top: 0; left: 0; right: 0;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0 14px; background: #146c43; color: #fff;
+      height: 58px;
+      position: fixed;
+      z-index: 2000;
+      top: 0;
+      left: 0;
+      right: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 14px;
+      background: #146c43;
+      color: #ffffff;
       border-bottom: 2px solid #0c4a2c;
     }
-    .topbar h1 { font-size: 17px; margin: 0; }
-    .topbar button, .btn {
-      border: 0; border-radius: 8px; padding: 10px 12px; cursor: pointer;
-      font-weight: 700; background: #146c43; color: #fff;
+
+    .topbar h1 {
+      margin: 0;
+      font-size: 17px;
     }
-    .topbar button { background: #0c4a2c; border: 1px solid rgba(255,255,255,.35); }
-    .btn.secondary { background: #e8eeea; color: #173b27; }
-    .btn.danger { background: #b42318; }
-    .btn.full { width: 100%; }
-    .btn:disabled { opacity: .6; cursor: not-allowed; }
+
+    .topbar button,
+    .btn {
+      border: 0;
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+      font-weight: 700;
+      background: #146c43;
+      color: #ffffff;
+    }
+
+    .topbar button {
+      background: #0c4a2c;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+    }
+
+    .btn.secondary {
+      background: #e8eeea;
+      color: #173b27;
+    }
+
+    .btn.danger {
+      background: #b42318;
+    }
+
+    .btn.full {
+      width: 100%;
+    }
 
     .menu {
-      position: fixed; z-index: 2500; right: 12px; top: 65px; width: 230px;
-      padding: 10px; background: #fff; border-radius: 12px;
-      box-shadow: 0 8px 28px rgba(0,0,0,.22); display: none;
+      position: fixed;
+      z-index: 2500;
+      right: 12px;
+      top: 65px;
+      width: 240px;
+      padding: 10px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+      display: none;
     }
-    .menu.open { display: block; }
+
+    .menu.open {
+      display: block;
+    }
+
     .menu button {
-      display: block; width: 100%; text-align: left; padding: 12px;
-      background: #fff; color: #173b27; border: 0; cursor: pointer; border-radius: 7px;
+      display: block;
+      width: 100%;
+      padding: 12px;
+      border: 0;
+      border-radius: 7px;
+      text-align: left;
+      background: #ffffff;
+      color: #173b27;
+      cursor: pointer;
+      font-weight: 700;
     }
-    .menu button:hover { background: #edf7f0; }
+
+    .menu button:hover {
+      background: #edf7f0;
+    }
 
     .route-box {
-      position: fixed; z-index: 1500; top: 72px; left: 12px; right: 12px;
-      max-width: 480px; padding: 12px; border-radius: 12px; background: #fff;
-      box-shadow: 0 6px 24px rgba(0,0,0,.18);
+      position: fixed;
+      z-index: 1500;
+      top: 72px;
+      left: 12px;
+      right: 12px;
+      max-width: 480px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #ffffff;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
     }
-    .route-box input, .panel input {
-      width: 100%; margin: 5px 0 9px; padding: 11px; border: 1px solid #c8d3cb;
-      border-radius: 8px; font-size: 14px;
+
+    .route-box input,
+    .panel input {
+      width: 100%;
+      margin: 5px 0 9px;
+      padding: 11px;
+      border: 1px solid #c8d3cb;
+      border-radius: 8px;
+      font-size: 14px;
     }
-    .route-actions { display: flex; gap: 8px; }
-    .route-actions button { flex: 1; }
+
+    .route-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .route-actions button {
+      flex: 1;
+    }
+
+    .route-alternatives {
+      display: grid;
+      gap: 7px;
+      margin-top: 10px;
+    }
+
+    .route-option {
+      padding: 10px;
+      border: 2px solid #d8e3dc;
+      border-radius: 9px;
+      background: #ffffff;
+      color: #173b27;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .route-option:hover,
+    .route-option.selected {
+      border-color: #146c43;
+      background: #edf8f0;
+    }
+
+    .route-option strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .start-trip-button {
+      display: none;
+      margin-top: 10px;
+      background: #146c43;
+    }
 
     .panel-backdrop {
-      display: none; position: fixed; inset: 0; z-index: 3000;
-      background: rgba(0,0,0,.38);
+      display: none;
+      position: fixed;
+      z-index: 3000;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.38);
     }
-    .panel-backdrop.open { display: block; }
+
+    .panel-backdrop.open {
+      display: block;
+    }
+
     .panel {
-      position: absolute; top: 0; right: 0; width: min(430px, 100%);
-      min-height: 100%; padding: 18px; overflow-y: auto; background: #fff;
-      box-shadow: -8px 0 28px rgba(0,0,0,.22);
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: min(430px, 100%);
+      min-height: 100%;
+      padding: 18px;
+      overflow-y: auto;
+      background: #ffffff;
+      box-shadow: -8px 0 28px rgba(0, 0, 0, 0.22);
     }
-    .panel-header { display: flex; justify-content: space-between; align-items: center; }
-    .panel h2 { margin: 0 0 14px; color: #146c43; }
-    .panel h3 { margin: 18px 0 8px; font-size: 16px; }
-    .close-btn { background: #ecefed !important; color: #173b27 !important; }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      color: #146c43;
+    }
+
     .card {
-      margin: 10px 0; padding: 12px; border-radius: 10px;
-      border: 1px solid #dce5df; background: #fbfdfb;
+      margin: 10px 0;
+      padding: 12px;
+      border: 1px solid #dce5df;
+      border-radius: 10px;
+      background: #fbfdfb;
     }
-    .small { color: #5c6c62; font-size: 12px; line-height: 1.45; }
+
+    .small {
+      color: #5c6c62;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .close-btn {
+      background: #ecefed !important;
+      color: #173b27 !important;
+    }
+
     .notice {
-      position: fixed; z-index: 5000; left: 12px; right: 12px; bottom: 12px;
-      max-width: 600px; margin: auto; padding: 12px 14px; border-radius: 10px;
-      color: #fff; display: none; box-shadow: 0 6px 20px rgba(0,0,0,.25);
+      display: none;
+      position: fixed;
+      z-index: 5000;
+      right: 12px;
+      bottom: 12px;
+      left: 12px;
+      max-width: 620px;
+      margin: auto;
+      padding: 12px 14px;
+      border-radius: 10px;
+      color: #ffffff;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
     }
-    .notice.show { display: block; }
-    .notice.ok { background: #146c43; }
-    .notice.error { background: #b42318; }
-    .notice.warn { background: #a15c00; }
+
+    .notice.show {
+      display: block;
+    }
+
+    .notice.ok {
+      background: #146c43;
+    }
+
+    .notice.error {
+      background: #b42318;
+    }
+
+    .notice.warn {
+      background: #a15c00;
+    }
 
     .marker-viaduto {
-      width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%;
-      border: 3px solid #fff; color: #fff; font-weight: 900; font-size: 20px;
-      box-shadow: 0 2px 9px rgba(0,0,0,.35);
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 3px solid #ffffff;
+      border-radius: 50%;
+      color: #ffffff;
+      font-weight: 900;
+      font-size: 20px;
+      box-shadow: 0 2px 9px rgba(0, 0, 0, 0.35);
     }
-    .safe { background: #198754; }
-    .blocked { background: #c92a2a; }
-    .unknown { background: #e38b00; }
+
+    .safe {
+      background: #198754;
+    }
+
+    .blocked {
+      background: #c92a2a;
+    }
+
+    .unknown {
+      background: #e38b00;
+    }
+
+    .navigation-hud {
+      position: fixed;
+      z-index: 4000;
+      top: 10px;
+      right: 10px;
+      left: 10px;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 12px;
+      background: #146c43;
+      color: #ffffff;
+      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3);
+    }
+
+    .navigation-hud strong {
+      display: block;
+      font-size: 16px;
+    }
+
+    .navigation-info {
+      margin-top: 5px;
+      font-size: 13px;
+    }
+
+    body.navigation-mode .topbar,
+    body.navigation-mode .route-box {
+      display: none;
+    }
+
+    body.navigation-mode #map {
+      inset: 0;
+    }
 
     @media (max-width: 600px) {
-      .route-box { top: 66px; }
-      .topbar h1 { font-size: 15px; }
+      .topbar h1 {
+        font-size: 14px;
+      }
+
+      .route-box {
+        top: 66px;
+      }
+
+      .route-actions {
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -114,12 +357,35 @@
   </nav>
 
   <section class="route-box">
-    <input id="originInput" placeholder="Origem: cidade, endereço ou use localização" />
-    <input id="destinationInput" placeholder="Destino: cidade ou endereço" />
+    <input
+      id="originInput"
+      placeholder="Origem: cidade, endereço ou localização"
+    />
+
+    <input
+      id="destinationInput"
+      placeholder="Destino: cidade ou endereço"
+    />
+
     <div class="route-actions">
-      <button class="btn secondary" onclick="usarLocalizacaoAtual()">📍 Minha localização</button>
-      <button class="btn" onclick="calcularRota()">Traçar rota</button>
+      <button class="btn secondary" onclick="usarLocalizacaoAtual()">
+        📍 Minha localização
+      </button>
+
+      <button class="btn" onclick="calcularRota()">
+        Traçar rotas
+      </button>
     </div>
+
+    <div id="routeAlternatives" class="route-alternatives"></div>
+
+    <button
+      id="startTripButton"
+      class="btn full start-trip-button"
+      onclick="iniciarViagem()"
+    >
+      ▶ Iniciar viagem
+    </button>
   </section>
 
   <div id="map"></div>
@@ -143,10 +409,11 @@
       <div id="loginArea">
         <label>E-mail</label>
         <input id="emailInput" type="email" placeholder="seuemail@exemplo.com" />
+
         <label>Senha</label>
         <input id="passwordInput" type="password" placeholder="Sua senha" />
+
         <button class="btn full" onclick="entrar()">Entrar</button>
-        <p class="small">Para criar uma conta, use o painel Authentication do Supabase ou adicione um botão de cadastro posteriormente.</p>
       </div>
     </section>
 
@@ -156,22 +423,26 @@
         <button class="btn close-btn" onclick="fecharPaineis()">✕</button>
       </div>
 
-      <p class="small">A margem de segurança é somada à altura do veículo antes de comparar com os viadutos.</p>
+      <p class="small">
+        A margem de segurança é adicionada à altura do caminhão antes de
+        comparar com os viadutos.
+      </p>
 
       <label>Nome ou placa</label>
       <input id="truckName" placeholder="Ex.: Scania R450 / ABC1D23" />
 
-      <label>Altura do caminhão (metros)</label>
+      <label>Altura do caminhão em metros</label>
       <input id="truckHeight" type="number" min="0" step="0.01" placeholder="Ex.: 4.40" />
 
-      <label>Largura do caminhão (metros)</label>
+      <label>Largura do caminhão em metros</label>
       <input id="truckWidth" type="number" min="0" step="0.01" placeholder="Ex.: 2.60" />
 
-      <label>Margem de segurança (metros)</label>
+      <label>Margem de segurança em metros</label>
       <input id="truckMargin" type="number" min="0" step="0.01" value="0.15" />
 
-      <button class="btn full" onclick="salvarCaminhao()">Salvar caminhão</button>
-      <p class="small">O salvamento no banco exige login. Sem login, o perfil fica somente neste navegador.</p>
+      <button class="btn full" onclick="salvarCaminhao()">
+        Salvar caminhão
+      </button>
     </section>
 
     <section class="panel" id="historyPanel" style="display:none">
@@ -179,7 +450,11 @@
         <h2>Histórico de viagens</h2>
         <button class="btn close-btn" onclick="fecharPaineis()">✕</button>
       </div>
-      <button class="btn danger full" onclick="apagarHistorico()">Apagar histórico local</button>
+
+      <button class="btn danger full" onclick="apagarHistorico()">
+        Apagar histórico local
+      </button>
+
       <div id="historyList"></div>
     </section>
 
@@ -190,50 +465,70 @@
       </div>
 
       <div class="card">
-        <strong>🟢 Seguro</strong>
-        <p class="small">Altura livre maior ou igual à altura do caminhão com margem.</p>
+        <strong>🟢 Viaduto compatível</strong>
+        <p class="small">A altura livre suporta a altura do caminhão com margem.</p>
       </div>
+
       <div class="card">
         <strong>🔴 Atenção: não passar</strong>
-        <p class="small">Altura livre menor que a altura necessária do caminhão.</p>
+        <p class="small">A altura do viaduto é menor que a altura necessária.</p>
       </div>
+
       <div class="card">
         <strong>🟡 Não confirmado</strong>
-        <p class="small">Perfil do caminhão ou altura do viaduto não informado.</p>
+        <p class="small">Faltam dados do caminhão ou da altura do viaduto.</p>
       </div>
 
       <p class="small">
-        O mapa exibe somente dados cadastrados como <b>official</b> ou <b>verified</b>.
-        Dados devem vir de órgãos, concessionárias, DER, DNIT, ANTT ou prefeitura.
-        Confirme sempre a sinalização física da via.
+        O mapa mostra apenas dados marcados como <b>official</b> ou
+        <b>verified</b>. Sempre respeite a sinalização física da rodovia.
       </p>
     </section>
   </div>
 
+  <div id="navigationHud" class="navigation-hud" style="display:none">
+    <div>
+      <strong id="navigationTitle">Navegação iniciada</strong>
+      <div id="navigationInfo" class="navigation-info">
+        Aguardando localização...
+      </div>
+    </div>
+
+    <button class="btn danger" onclick="encerrarViagem()">Encerrar</button>
+  </div>
+
   <script>
-    // =========================================================
-    // CONFIGURAÇÃO SUPABASE
-    // =========================================================
     const SUPABASE_URL = 'https://paiijqyfozhanqdihhph.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_wee3DURgbdJQC7xXOJsSCQ_mhRrH6w1';
+
+    const SUPABASE_ANON_KEY =
+      'sb_publishable_wee3DURgbdJQC7xXOJsSCQ_mhRrH6w1';
 
     let supabaseClient = null;
     let map;
-    let routeLayer;
-    let clearanceLayer;
+    let routeLayer = null;
+    let clearanceLayer = null;
     let currentRoute = null;
+    let routeAlternatives = [];
+    let selectedRouteIndex = 0;
     let currentUser = null;
+    let navigationWatchId = null;
+    let navigationMarker = null;
+    let tripStartedForCurrentRoute = false;
 
     function aviso(texto, tipo = 'ok') {
       const box = document.getElementById('notice');
+
       box.textContent = texto;
       box.className = `notice show ${tipo}`;
-      setTimeout(() => box.classList.remove('show'), 5000);
+
+      setTimeout(() => {
+        box.classList.remove('show');
+      }, 5000);
     }
 
     function iniciarSupabase() {
       try {
-        if (!window.supabase?.createClient) {
+        if (!window.supabase || !window.supabase.createClient) {
           throw new Error('Biblioteca do Supabase não carregada.');
         }
 
@@ -260,10 +555,13 @@
     function iniciarMapa() {
       map = L.map('map').setView([-14.235, -51.9253], 4);
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap'
-      }).addTo(map);
+      L.tileLayer(
+        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+        {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap'
+        }
+      ).addTo(map);
 
       clearanceLayer = L.layerGroup().addTo(map);
     }
@@ -271,16 +569,32 @@
     function abrirPainel(id) {
       document.getElementById('menu').classList.remove('open');
       document.getElementById('panelBackdrop').classList.add('open');
-      document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+
+      document.querySelectorAll('.panel').forEach(painel => {
+        painel.style.display = 'none';
+      });
+
       document.getElementById(id).style.display = 'block';
 
-      if (id === 'historyPanel') mostrarHistorico();
-      if (id === 'accountPanel') atualizarConta();
+      if (id === 'historyPanel') {
+        mostrarHistorico();
+      }
+
+      if (id === 'accountPanel') {
+        atualizarConta();
+      }
+
+      if (id === 'truckPanel') {
+        carregarPerfilCaminhao();
+      }
     }
 
     function fecharPaineis() {
       document.getElementById('panelBackdrop').classList.remove('open');
-      document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+
+      document.querySelectorAll('.panel').forEach(painel => {
+        painel.style.display = 'none';
+      });
     }
 
     function obterPerfilCaminhao() {
@@ -292,43 +606,44 @@
     }
 
     function carregarPerfilCaminhao() {
-      const p = obterPerfilCaminhao();
-      document.getElementById('truckName').value = p.name || '';
-      document.getElementById('truckHeight').value = p.height_m || '';
-      document.getElementById('truckWidth').value = p.width_m || '';
-      document.getElementById('truckMargin').value = p.margin_m ?? 0.15;
+      const perfil = obterPerfilCaminhao();
+
+      document.getElementById('truckName').value = perfil.name || '';
+      document.getElementById('truckHeight').value = perfil.height_m || '';
+      document.getElementById('truckWidth').value = perfil.width_m || '';
+      document.getElementById('truckMargin').value = perfil.margin_m ?? 0.15;
     }
 
     async function salvarCaminhao() {
-      const profile = {
+      const perfil = {
         name: document.getElementById('truckName').value.trim(),
         height_m: Number(document.getElementById('truckHeight').value),
         width_m: Number(document.getElementById('truckWidth').value),
         margin_m: Number(document.getElementById('truckMargin').value || 0.15)
       };
 
-      if (!profile.height_m || profile.height_m <= 0) {
+      if (!perfil.height_m || perfil.height_m <= 0) {
         aviso('Informe uma altura válida para o caminhão.', 'warn');
         return;
       }
 
-      localStorage.setItem('truckProfile', JSON.stringify(profile));
+      localStorage.setItem('truckProfile', JSON.stringify(perfil));
 
       if (currentUser) {
         const { error } = await supabaseClient
           .from('vehicle_profiles')
           .upsert({
             user_id: currentUser.id,
-            truck_name: profile.name,
-            height_m: profile.height_m,
-            width_m: profile.width_m,
-            safety_margin_m: profile.margin_m,
+            truck_name: perfil.name,
+            height_m: perfil.height_m,
+            width_m: perfil.width_m,
+            safety_margin_m: perfil.margin_m,
             updated_at: new Date().toISOString()
           });
 
         if (error) {
           console.error(error);
-          aviso(`Perfil salvo localmente, mas não no banco: ${error.message}`, 'warn');
+          aviso(`Perfil salvo apenas neste aparelho: ${error.message}`, 'warn');
           return;
         }
       }
@@ -346,7 +661,10 @@
         return;
       }
 
-      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+      const { error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
 
       if (error) {
         aviso(`Erro ao entrar: ${error.message}`, 'error');
@@ -359,34 +677,51 @@
 
     async function sair() {
       const { error } = await supabaseClient.auth.signOut();
+
       if (error) {
         aviso(`Erro ao sair: ${error.message}`, 'error');
         return;
       }
+
       currentUser = null;
       atualizarConta();
       aviso('Sessão encerrada.');
     }
 
     function atualizarConta() {
-      const logged = document.getElementById('loggedArea');
-      const login = document.getElementById('loginArea');
+      const areaLogada = document.getElementById('loggedArea');
+      const areaLogin = document.getElementById('loginArea');
 
       if (currentUser) {
-        document.getElementById('loggedEmail').textContent = currentUser.email || 'Usuário conectado';
-        logged.style.display = 'block';
-        login.style.display = 'none';
+        document.getElementById('loggedEmail').textContent =
+          currentUser.email || 'Usuário conectado';
+
+        areaLogada.style.display = 'block';
+        areaLogin.style.display = 'none';
       } else {
-        logged.style.display = 'none';
-        login.style.display = 'block';
+        areaLogada.style.display = 'none';
+        areaLogin.style.display = 'block';
       }
     }
 
     async function verificarSessao() {
       const { data, error } = await supabaseClient.auth.getSession();
-      if (error) console.warn(error);
+
+      if (error) {
+        console.warn(error);
+      }
+
       currentUser = data?.session?.user || null;
       atualizarConta();
+    }
+
+    function textoSeguro(valor) {
+      return String(valor ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
     }
 
     function iconeViaduto(classe) {
@@ -399,21 +734,25 @@
       });
     }
 
-    function textoSeguro(valor) {
-      return String(valor ?? '')
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
-    }
-
     async function carregarViadutosOficiais() {
       if (!supabaseClient) return;
 
       const { data, error } = await supabaseClient
         .from('road_clearances')
-        .select('id,name,road_name,km,latitude,longitude,clearance_height_m,clearance_width_m,status,source_name,source_url,verified_at')
+        .select(`
+          id,
+          name,
+          road_name,
+          km,
+          latitude,
+          longitude,
+          clearance_height_m,
+          clearance_width_m,
+          status,
+          source_name,
+          source_url,
+          verified_at
+        `)
         .in('status', ['official', 'verified'])
         .not('latitude', 'is', null)
         .not('longitude', 'is', null);
@@ -427,54 +766,98 @@
       clearanceLayer.clearLayers();
 
       const truck = obterPerfilCaminhao();
-      const requiredHeight = Number(truck.height_m || 0) + Number(truck.margin_m || 0.15);
 
-      data.forEach(item => {
-        const freeHeight = Number(item.clearance_height_m || 0);
-        let type = 'unknown';
-        let safetyText = 'Altura do caminhão não informada.';
+      const alturaNecessaria =
+        Number(truck.height_m || 0) +
+        Number(truck.margin_m || 0.15);
 
-        if (requiredHeight > 0 && freeHeight > 0) {
-          if (freeHeight >= requiredHeight) {
-            type = 'safe';
-            safetyText = 'Compatível com a altura do caminhão.';
+      data.forEach(viaduto => {
+        const alturaLivre = Number(viaduto.clearance_height_m || 0);
+
+        let classe = 'unknown';
+        let situacao = 'Altura do caminhão não informada.';
+
+        if (alturaNecessaria > 0 && alturaLivre > 0) {
+          if (alturaLivre >= alturaNecessaria) {
+            classe = 'safe';
+            situacao = 'Compatível com a altura do caminhão.';
           } else {
-            type = 'blocked';
-            safetyText = 'ATENÇÃO: altura insuficiente para o caminhão.';
+            classe = 'blocked';
+            situacao = 'ATENÇÃO: altura insuficiente para este caminhão.';
           }
         }
 
-        const sourceLink = item.source_url
-          ? `<p><a href="${textoSeguro(item.source_url)}" target="_blank" rel="noopener">Abrir fonte oficial</a></p>`
+        const linkFonte = viaduto.source_url
+          ? `<p><a href="${textoSeguro(viaduto.source_url)}" target="_blank" rel="noopener">Abrir fonte oficial</a></p>`
           : '';
 
         const popup = `
-          <strong>${textoSeguro(item.name || 'Viaduto')}</strong>
-          <p><b>Rodovia:</b> ${textoSeguro(item.road_name || 'Não informada')}</p>
-          <p><b>KM:</b> ${textoSeguro(item.km || 'Não informado')}</p>
-          <p><b>Altura livre:</b> ${freeHeight ? freeHeight.toFixed(2) + ' m' : 'Não informada'}</p>
-          <p><b>Largura:</b> ${item.clearance_width_m ? Number(item.clearance_width_m).toFixed(2) + ' m' : 'Não informada'}</p>
-          <p><b>Situação:</b> ${safetyText}</p>
-          <p><b>Fonte:</b> ${textoSeguro(item.source_name || 'Não informada')}</p>
-          ${sourceLink}
+          <strong>${textoSeguro(viaduto.name || 'Viaduto')}</strong>
+          <p><b>Rodovia:</b> ${textoSeguro(viaduto.road_name || 'Não informada')}</p>
+          <p><b>KM:</b> ${textoSeguro(viaduto.km || 'Não informado')}</p>
+          <p><b>Altura livre:</b> ${alturaLivre ? alturaLivre.toFixed(2) + ' m' : 'Não informada'}</p>
+          <p><b>Largura:</b> ${viaduto.clearance_width_m ? Number(viaduto.clearance_width_m).toFixed(2) + ' m' : 'Não informada'}</p>
+          <p><b>Situação:</b> ${situacao}</p>
+          <p><b>Fonte:</b> ${textoSeguro(viaduto.source_name || 'Não informada')}</p>
+          ${linkFonte}
         `;
 
-        L.marker([Number(item.latitude), Number(item.longitude)], {
-          icon: iconeViaduto(type)
-        }).bindPopup(popup).addTo(clearanceLayer);
+        L.marker(
+          [Number(viaduto.latitude), Number(viaduto.longitude)],
+          { icon: iconeViaduto(classe) }
+        )
+          .bindPopup(popup)
+          .addTo(clearanceLayer);
       });
+    }
+
+    function formatarDistancia(metros) {
+      return `${(metros / 1000).toFixed(1)} km`;
+    }
+
+    function formatarDuracao(segundos) {
+      const minutos = Math.round(segundos / 60);
+
+      if (minutos < 60) {
+        return `${minutos} min`;
+      }
+
+      const horas = Math.floor(minutos / 60);
+      const minutosRestantes = minutos % 60;
+
+      return minutosRestantes
+        ? `${horas} h ${minutosRestantes} min`
+        : `${horas} h`;
     }
 
     async function buscarEndereco(texto) {
       const response = await fetch(
         `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(texto)}`,
-        { headers: { 'Accept-Language': 'pt-BR' } }
+        {
+          headers: {
+            'Accept-Language': 'pt-BR'
+          }
+        }
       );
 
-      const result = await response.json();
+      const resultados = await response.json();
 
-      if (!result.length) throw new Error(`Local não encontrado: ${texto}`);
-      return [Number(result[0].lat), Number(result[0].lon)];
+      if (!resultados.length) {
+        throw new Error(`Local não encontrado: ${texto}`);
+      }
+
+      return [
+        Number(resultados[0].lat),
+        Number(resultados[0].lon)
+      ];
+    }
+
+    function lerCoordenadas(texto) {
+      const partes = texto.split(',').map(valor => Number(valor.trim()));
+
+      return partes.length === 2 && partes.every(Number.isFinite)
+        ? partes
+        : null;
     }
 
     function usarLocalizacaoAtual() {
@@ -484,20 +867,27 @@
       }
 
       navigator.geolocation.getCurrentPosition(
-        pos => {
-          const point = [pos.coords.latitude, pos.coords.longitude];
-          document.getElementById('originInput').value = `${point[0]}, ${point[1]}`;
-          map.setView(point, 14);
+        posicao => {
+          const ponto = [
+            posicao.coords.latitude,
+            posicao.coords.longitude
+          ];
+
+          document.getElementById('originInput').value =
+            `${ponto[0]}, ${ponto[1]}`;
+
+          map.setView(ponto, 14);
+
           aviso('Localização atual definida como origem.');
         },
-        () => aviso('Não foi possível obter sua localização.', 'error'),
-        { enableHighAccuracy: true, timeout: 10000 }
+        () => {
+          aviso('Não foi possível obter sua localização.', 'error');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000
+        }
       );
-    }
-
-    function lerCoordenadas(texto) {
-      const parts = texto.split(',').map(v => Number(v.trim()));
-      return parts.length === 2 && parts.every(Number.isFinite) ? parts : null;
     }
 
     async function calcularRota() {
@@ -510,83 +900,279 @@
       }
 
       try {
-        aviso('Calculando rota...', 'ok');
+        aviso('Procurando rotas disponíveis...', 'ok');
 
-        const origin = lerCoordenadas(origemTexto) || await buscarEndereco(origemTexto);
-        const destination = lerCoordenadas(destinoTexto) || await buscarEndereco(destinoTexto);
+        const origem =
+          lerCoordenadas(origemTexto) ||
+          await buscarEndereco(origemTexto);
 
-        const response = await fetch(
-          `https://router.project-osrm.org/route/v1/driving/${origin[1]},${origin[0]};${destination[1]},${destination[0]}?overview=full&geometries=geojson`
+        const destino =
+          lerCoordenadas(destinoTexto) ||
+          await buscarEndereco(destinoTexto);
+
+        const url =
+          `https://router.project-osrm.org/route/v1/driving/` +
+          `${origem[1]},${origem[0]};${destino[1]},${destino[0]}` +
+          `?overview=full` +
+          `&geometries=geojson` +
+          `&steps=true` +
+          `&alternatives=true` +
+          `&continue_straight=false`;
+
+        const resposta = await fetch(url);
+
+        if (!resposta.ok) {
+          throw new Error('Não foi possível consultar o serviço de rotas.');
+        }
+
+        const resultado = await resposta.json();
+
+        if (!resultado.routes || !resultado.routes.length) {
+          throw new Error('Nenhuma rota foi encontrada.');
+        }
+
+        routeAlternatives = resultado.routes.slice(0, 3);
+        selectedRouteIndex = 0;
+        tripStartedForCurrentRoute = false;
+
+        exibirAlternativasDeRota();
+        selecionarRota(0);
+
+        document.getElementById('startTripButton').style.display = 'block';
+
+        aviso(
+          `${routeAlternatives.length} opção(ões) de rota encontrada(s).`,
+          'ok'
         );
-
-        const result = await response.json();
-        if (!result.routes?.length) throw new Error('Rota não encontrada.');
-
-        const route = result.routes[0];
-        currentRoute = route;
-
-        if (routeLayer) map.removeLayer(routeLayer);
-
-        routeLayer = L.geoJSON(route.geometry, {
-          style: { color: '#146c43', weight: 6, opacity: 0.85 }
-        }).addTo(map);
-
-        map.fitBounds(routeLayer.getBounds(), { padding: [35, 35] });
-
-        salvarViagem(origemTexto, destinoTexto, route.distance, route.duration);
-        aviso('Rota calculada. Verifique sempre placas e restrições locais.', 'ok');
       } catch (erro) {
         console.error(erro);
-        aviso(`Erro na rota: ${erro.message}`, 'error');
+        aviso(`Erro ao calcular rota: ${erro.message}`, 'error');
       }
     }
 
-    async function salvarViagem(origin, destination, distance, duration) {
-      const trip = {
-        origin,
-        destination,
-        distance_km: Number(distance / 1000).toFixed(1),
-        duration_min: Math.round(duration / 60),
+    function exibirAlternativasDeRota() {
+      const container = document.getElementById('routeAlternatives');
+
+      if (!routeAlternatives.length) {
+        container.innerHTML = '';
+        return;
+      }
+
+      container.innerHTML = routeAlternatives.map((rota, indice) => {
+        const titulo =
+          indice === 0
+            ? 'Rota principal'
+            : `Alternativa ${indice}`;
+
+        return `
+          <button
+            class="route-option ${indice === selectedRouteIndex ? 'selected' : ''}"
+            onclick="selecionarRota(${indice})"
+          >
+            <strong>${titulo}</strong>
+            <span>
+              ${formatarDistancia(rota.distance)}
+              ·
+              ${formatarDuracao(rota.duration)}
+            </span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function selecionarRota(indice) {
+      if (!routeAlternatives[indice]) return;
+
+      selectedRouteIndex = indice;
+      currentRoute = routeAlternatives[indice];
+      tripStartedForCurrentRoute = false;
+
+      if (routeLayer) {
+        map.removeLayer(routeLayer);
+      }
+
+      routeLayer = L.geoJSON(currentRoute.geometry, {
+        style: {
+          color: '#146c43',
+          weight: 6,
+          opacity: 0.9
+        }
+      }).addTo(map);
+
+      map.fitBounds(routeLayer.getBounds(), {
+        padding: [35, 35]
+      });
+
+      exibirAlternativasDeRota();
+    }
+
+    function iniciarViagem() {
+      if (!currentRoute) {
+        aviso('Primeiro escolha e calcule uma rota.', 'warn');
+        return;
+      }
+
+      document.body.classList.add('navigation-mode');
+      document.getElementById('navigationHud').style.display = 'flex';
+
+      document.getElementById('navigationTitle').textContent =
+        'Viagem em andamento';
+
+      document.getElementById('navigationInfo').textContent =
+        `Rota selecionada: ${formatarDistancia(currentRoute.distance)} · ${formatarDuracao(currentRoute.duration)}`;
+
+      map.invalidateSize();
+
+      if (!tripStartedForCurrentRoute) {
+        const origem = document.getElementById('originInput').value.trim();
+        const destino = document.getElementById('destinationInput').value.trim();
+
+        salvarViagem(
+          origem,
+          destino,
+          currentRoute.distance,
+          currentRoute.duration
+        );
+
+        tripStartedForCurrentRoute = true;
+      }
+
+      if (!navigator.geolocation) {
+        aviso('Seu navegador não oferece geolocalização.', 'error');
+        return;
+      }
+
+      if (navigationWatchId !== null) {
+        navigator.geolocation.clearWatch(navigationWatchId);
+      }
+
+      navigationWatchId = navigator.geolocation.watchPosition(
+        posicao => {
+          const ponto = [
+            posicao.coords.latitude,
+            posicao.coords.longitude
+          ];
+
+          if (navigationMarker) {
+            navigationMarker.setLatLng(ponto);
+          } else {
+            navigationMarker = L.marker(ponto, {
+              title: 'Sua localização'
+            }).addTo(map);
+
+            navigationMarker.bindPopup('Você está aqui');
+          }
+
+          map.setView(ponto, 16);
+
+          const velocidadeKmH = posicao.coords.speed
+            ? Math.round(posicao.coords.speed * 3.6)
+            : 0;
+
+          document.getElementById('navigationInfo').textContent =
+            `Localização atualizada · Velocidade: ${velocidadeKmH} km/h`;
+        },
+        erro => {
+          console.error(erro);
+
+          aviso(
+            'Não foi possível acompanhar sua localização. Verifique a permissão do GPS.',
+            'error'
+          );
+        },
+        {
+          enableHighAccuracy: true,
+          maximumAge: 3000,
+          timeout: 15000
+        }
+      );
+
+      aviso(
+        'Viagem iniciada. Dirija com atenção e respeite a sinalização.',
+        'ok'
+      );
+    }
+
+    function encerrarViagem() {
+      if (navigationWatchId !== null) {
+        navigator.geolocation.clearWatch(navigationWatchId);
+        navigationWatchId = null;
+      }
+
+      document.body.classList.remove('navigation-mode');
+      document.getElementById('navigationHud').style.display = 'none';
+
+      map.invalidateSize();
+
+      aviso('Viagem encerrada.', 'ok');
+    }
+
+    async function salvarViagem(origem, destino, distancia, duracao) {
+      const viagem = {
+        origin: origem,
+        destination: destino,
+        distance_km: Number(distancia / 1000).toFixed(1),
+        duration_min: Math.round(duracao / 60),
         created_at: new Date().toISOString()
       };
 
-      const history = JSON.parse(localStorage.getItem('tripHistory') || '[]');
-      history.unshift(trip);
-      localStorage.setItem('tripHistory', JSON.stringify(history.slice(0, 50)));
+      const historico =
+        JSON.parse(localStorage.getItem('tripHistory') || '[]');
+
+      historico.unshift(viagem);
+
+      localStorage.setItem(
+        'tripHistory',
+        JSON.stringify(historico.slice(0, 50))
+      );
 
       if (currentUser) {
-        const { error } = await supabaseClient.from('trip_history').insert({
-          user_id: currentUser.id,
-          origin: trip.origin,
-          destination: trip.destination,
-          distance_km: Number(trip.distance_km),
-          duration_min: trip.duration_min
-        });
+        const { error } = await supabaseClient
+          .from('trip_history')
+          .insert({
+            user_id: currentUser.id,
+            origin: viagem.origin,
+            destination: viagem.destination,
+            distance_km: Number(viagem.distance_km),
+            duration_min: viagem.duration_min
+          });
 
-        if (error) console.warn('Histórico não salvo no banco:', error.message);
+        if (error) {
+          console.warn('Histórico não salvo no banco:', error.message);
+        }
       }
     }
 
     function mostrarHistorico() {
-      const history = JSON.parse(localStorage.getItem('tripHistory') || '[]');
+      const historico =
+        JSON.parse(localStorage.getItem('tripHistory') || '[]');
+
       const box = document.getElementById('historyList');
 
-      if (!history.length) {
-        box.innerHTML = '<p class="small">Nenhuma viagem registrada neste navegador.</p>';
+      if (!historico.length) {
+        box.innerHTML =
+          '<p class="small">Nenhuma viagem registrada neste navegador.</p>';
         return;
       }
 
-      box.innerHTML = history.map(item => `
+      box.innerHTML = historico.map(viagem => `
         <div class="card">
-          <strong>${textoSeguro(item.origin)} → ${textoSeguro(item.destination)}</strong>
-          <p class="small">${item.distance_km} km · ${item.duration_min} min</p>
-          <p class="small">${new Date(item.created_at).toLocaleString('pt-BR')}</p>
+          <strong>${textoSeguro(viagem.origin)} → ${textoSeguro(viagem.destination)}</strong>
+          <p class="small">
+            ${viagem.distance_km} km · ${viagem.duration_min} min
+          </p>
+          <p class="small">
+            ${new Date(viagem.created_at).toLocaleString('pt-BR')}
+          </p>
         </div>
       `).join('');
     }
 
     function apagarHistorico() {
-      if (!confirm('Apagar o histórico salvo neste navegador?')) return;
+      if (!confirm('Apagar o histórico salvo neste navegador?')) {
+        return;
+      }
+
       localStorage.removeItem('tripHistory');
       mostrarHistorico();
       aviso('Histórico local apagado.');
@@ -596,8 +1182,10 @@
       document.getElementById('menu').classList.toggle('open');
     });
 
-    document.getElementById('panelBackdrop').addEventListener('click', event => {
-      if (event.target.id === 'panelBackdrop') fecharPaineis();
+    document.getElementById('panelBackdrop').addEventListener('click', evento => {
+      if (evento.target.id === 'panelBackdrop') {
+        fecharPaineis();
+      }
     });
 
     document.addEventListener('DOMContentLoaded', async () => {
