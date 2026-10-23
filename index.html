@@ -5,18 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>GPS Caminhoneiro Seguro</title>
 
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  />
-
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -32,18 +26,18 @@
     }
 
     .topbar {
-      height: 58px;
       position: fixed;
-      z-index: 2000;
       top: 0;
       left: 0;
       right: 0;
+      z-index: 2000;
+      height: 58px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 14px;
       background: #146c43;
-      color: #ffffff;
+      color: #fff;
       border-bottom: 2px solid #0c4a2c;
     }
 
@@ -52,20 +46,20 @@
       font-size: 17px;
     }
 
-    .topbar button,
-    .btn {
+    .btn,
+    .topbar button {
       border: 0;
       border-radius: 8px;
       padding: 10px 12px;
       cursor: pointer;
       font-weight: 700;
+      color: #fff;
       background: #146c43;
-      color: #ffffff;
     }
 
     .topbar button {
       background: #0c4a2c;
-      border: 1px solid rgba(255, 255, 255, 0.35);
+      border: 1px solid rgba(255,255,255,.35);
     }
 
     .btn.secondary {
@@ -82,16 +76,16 @@
     }
 
     .menu {
+      display: none;
       position: fixed;
       z-index: 2500;
-      right: 12px;
       top: 65px;
+      right: 12px;
       width: 240px;
       padding: 10px;
-      background: #ffffff;
       border-radius: 12px;
-      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
-      display: none;
+      background: #fff;
+      box-shadow: 0 8px 28px rgba(0,0,0,.22);
     }
 
     .menu.open {
@@ -105,7 +99,7 @@
       border: 0;
       border-radius: 7px;
       text-align: left;
-      background: #ffffff;
+      background: #fff;
       color: #173b27;
       cursor: pointer;
       font-weight: 700;
@@ -124,8 +118,8 @@
       max-width: 480px;
       padding: 12px;
       border-radius: 12px;
-      background: #ffffff;
-      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+      background: #fff;
+      box-shadow: 0 6px 24px rgba(0,0,0,.18);
     }
 
     .route-box input,
@@ -147,6 +141,28 @@
       flex: 1;
     }
 
+    .stop-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .stop-row input {
+      margin: 0;
+    }
+
+    .stop-row button {
+      min-width: 42px;
+      padding: 10px;
+      border: 0;
+      border-radius: 8px;
+      background: #b42318;
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
     .route-alternatives {
       display: grid;
       gap: 7px;
@@ -157,7 +173,7 @@
       padding: 10px;
       border: 2px solid #d8e3dc;
       border-radius: 9px;
-      background: #ffffff;
+      background: #fff;
       color: #173b27;
       cursor: pointer;
       text-align: left;
@@ -177,15 +193,14 @@
     .start-trip-button {
       display: none;
       margin-top: 10px;
-      background: #146c43;
     }
 
     .panel-backdrop {
       display: none;
       position: fixed;
-      z-index: 3000;
       inset: 0;
-      background: rgba(0, 0, 0, 0.38);
+      z-index: 3000;
+      background: rgba(0,0,0,.38);
     }
 
     .panel-backdrop.open {
@@ -200,19 +215,24 @@
       min-height: 100%;
       padding: 18px;
       overflow-y: auto;
-      background: #ffffff;
-      box-shadow: -8px 0 28px rgba(0, 0, 0, 0.22);
+      background: #fff;
+      box-shadow: -8px 0 28px rgba(0,0,0,.22);
     }
 
     .panel-header {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
     }
 
     .panel h2 {
       margin: 0 0 14px;
       color: #146c43;
+    }
+
+    .close-btn {
+      color: #173b27 !important;
+      background: #ecefed !important;
     }
 
     .card {
@@ -229,11 +249,6 @@
       line-height: 1.45;
     }
 
-    .close-btn {
-      background: #ecefed !important;
-      color: #173b27 !important;
-    }
-
     .notice {
       display: none;
       position: fixed;
@@ -241,54 +256,35 @@
       right: 12px;
       bottom: 12px;
       left: 12px;
-      max-width: 620px;
+      max-width: 600px;
       margin: auto;
       padding: 12px 14px;
       border-radius: 10px;
-      color: #ffffff;
-      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      color: #fff;
+      box-shadow: 0 6px 20px rgba(0,0,0,.25);
     }
 
-    .notice.show {
-      display: block;
-    }
-
-    .notice.ok {
-      background: #146c43;
-    }
-
-    .notice.error {
-      background: #b42318;
-    }
-
-    .notice.warn {
-      background: #a15c00;
-    }
+    .notice.show { display: block; }
+    .notice.ok { background: #146c43; }
+    .notice.warn { background: #a15c00; }
+    .notice.error { background: #b42318; }
 
     .marker-viaduto {
-      width: 34px;
-      height: 34px;
       display: grid;
       place-items: center;
-      border: 3px solid #ffffff;
+      width: 34px;
+      height: 34px;
+      border: 3px solid #fff;
       border-radius: 50%;
-      color: #ffffff;
-      font-weight: 900;
+      color: #fff;
       font-size: 20px;
-      box-shadow: 0 2px 9px rgba(0, 0, 0, 0.35);
+      font-weight: 900;
+      box-shadow: 0 2px 9px rgba(0,0,0,.35);
     }
 
-    .safe {
-      background: #198754;
-    }
-
-    .blocked {
-      background: #c92a2a;
-    }
-
-    .unknown {
-      background: #e38b00;
-    }
+    .safe { background: #198754; }
+    .blocked { background: #c92a2a; }
+    .unknown { background: #e38b00; }
 
     .navigation-hud {
       position: fixed;
@@ -296,16 +292,16 @@
       top: 10px;
       right: 10px;
       left: 10px;
-      min-height: 72px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      min-height: 72px;
       padding: 12px;
       border-radius: 12px;
       background: #146c43;
-      color: #ffffff;
-      box-shadow: 0 6px 22px rgba(0, 0, 0, 0.3);
+      color: #fff;
+      box-shadow: 0 6px 22px rgba(0,0,0,.3);
     }
 
     .navigation-hud strong {
@@ -328,17 +324,9 @@
     }
 
     @media (max-width: 600px) {
-      .topbar h1 {
-        font-size: 14px;
-      }
-
-      .route-box {
-        top: 66px;
-      }
-
-      .route-actions {
-        flex-direction: column;
-      }
+      .topbar h1 { font-size: 14px; }
+      .route-box { top: 66px; }
+      .route-actions { flex-direction: column; }
     }
   </style>
 </head>
@@ -357,15 +345,19 @@
   </nav>
 
   <section class="route-box">
-    <input
-      id="originInput"
-      placeholder="Origem: cidade, endereço ou localização"
-    />
+    <input id="originInput" placeholder="Origem: cidade, endereço ou localização" />
 
-    <input
-      id="destinationInput"
-      placeholder="Destino: cidade ou endereço"
-    />
+    <div id="stopsContainer"></div>
+
+    <button
+      class="btn secondary full"
+      style="margin: 5px 0 9px"
+      onclick="adicionarParada()"
+    >
+      + Adicionar parada
+    </button>
+
+    <input id="destinationInput" placeholder="Destino: cidade ou endereço" />
 
     <div class="route-actions">
       <button class="btn secondary" onclick="usarLocalizacaoAtual()">
@@ -424,8 +416,8 @@
       </div>
 
       <p class="small">
-        A margem de segurança é adicionada à altura do caminhão antes de
-        comparar com os viadutos.
+        A margem de segurança é somada à altura do caminhão antes de comparar
+        com as alturas dos viadutos.
       </p>
 
       <label>Nome ou placa</label>
@@ -440,9 +432,7 @@
       <label>Margem de segurança em metros</label>
       <input id="truckMargin" type="number" min="0" step="0.01" value="0.15" />
 
-      <button class="btn full" onclick="salvarCaminhao()">
-        Salvar caminhão
-      </button>
+      <button class="btn full" onclick="salvarCaminhao()">Salvar caminhão</button>
     </section>
 
     <section class="panel" id="historyPanel" style="display:none">
@@ -466,12 +456,12 @@
 
       <div class="card">
         <strong>🟢 Viaduto compatível</strong>
-        <p class="small">A altura livre suporta a altura do caminhão com margem.</p>
+        <p class="small">Altura livre suficiente para o caminhão com margem.</p>
       </div>
 
       <div class="card">
         <strong>🔴 Atenção: não passar</strong>
-        <p class="small">A altura do viaduto é menor que a altura necessária.</p>
+        <p class="small">Altura livre menor que a altura necessária.</p>
       </div>
 
       <div class="card">
@@ -480,15 +470,15 @@
       </div>
 
       <p class="small">
-        O mapa mostra apenas dados marcados como <b>official</b> ou
-        <b>verified</b>. Sempre respeite a sinalização física da rodovia.
+        O mapa mostra somente viadutos classificados como
+        <b>official</b> ou <b>verified</b>. Sempre siga a sinalização da via.
       </p>
     </section>
   </div>
 
   <div id="navigationHud" class="navigation-hud" style="display:none">
     <div>
-      <strong id="navigationTitle">Navegação iniciada</strong>
+      <strong id="navigationTitle">Viagem em andamento</strong>
       <div id="navigationInfo" class="navigation-info">
         Aguardando localização...
       </div>
@@ -499,25 +489,24 @@
 
   <script>
     const SUPABASE_URL = 'https://paiijqyfozhanqdihhph.supabase.co';
-
-    const SUPABASE_ANON_KEY =
-      'sb_publishable_wee3DURgbdJQC7xXOJsSCQ_mhRrH6w1';
+    const SUPABASE_ANON_KEY = 'sb_publishable_wee3DURgbdJQC7xXOJsSCQ_mhRrH6w1';
 
     let supabaseClient = null;
     let map;
     let routeLayer = null;
     let clearanceLayer = null;
+    let stopsLayer = null;
     let currentRoute = null;
     let routeAlternatives = [];
     let selectedRouteIndex = 0;
     let currentUser = null;
     let navigationWatchId = null;
     let navigationMarker = null;
+    let quantidadeParadas = 0;
     let tripStartedForCurrentRoute = false;
 
     function aviso(texto, tipo = 'ok') {
       const box = document.getElementById('notice');
-
       box.textContent = texto;
       box.className = `notice show ${tipo}`;
 
@@ -555,15 +544,13 @@
     function iniciarMapa() {
       map = L.map('map').setView([-14.235, -51.9253], 4);
 
-      L.tileLayer(
-        'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-        {
-          maxZoom: 19,
-          attribution: '&copy; OpenStreetMap'
-        }
-      ).addTo(map);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap'
+      }).addTo(map);
 
       clearanceLayer = L.layerGroup().addTo(map);
+      stopsLayer = L.layerGroup().addTo(map);
     }
 
     function abrirPainel(id) {
@@ -576,17 +563,9 @@
 
       document.getElementById(id).style.display = 'block';
 
-      if (id === 'historyPanel') {
-        mostrarHistorico();
-      }
-
-      if (id === 'accountPanel') {
-        atualizarConta();
-      }
-
-      if (id === 'truckPanel') {
-        carregarPerfilCaminhao();
-      }
+      if (id === 'historyPanel') mostrarHistorico();
+      if (id === 'accountPanel') atualizarConta();
+      if (id === 'truckPanel') carregarPerfilCaminhao();
     }
 
     function fecharPaineis() {
@@ -643,7 +622,7 @@
 
         if (error) {
           console.error(error);
-          aviso(`Perfil salvo apenas neste aparelho: ${error.message}`, 'warn');
+          aviso(`Perfil salvo localmente: ${error.message}`, 'warn');
           return;
         }
       }
@@ -689,27 +668,25 @@
     }
 
     function atualizarConta() {
-      const areaLogada = document.getElementById('loggedArea');
-      const areaLogin = document.getElementById('loginArea');
+      const logged = document.getElementById('loggedArea');
+      const login = document.getElementById('loginArea');
 
       if (currentUser) {
         document.getElementById('loggedEmail').textContent =
           currentUser.email || 'Usuário conectado';
 
-        areaLogada.style.display = 'block';
-        areaLogin.style.display = 'none';
+        logged.style.display = 'block';
+        login.style.display = 'none';
       } else {
-        areaLogada.style.display = 'none';
-        areaLogin.style.display = 'block';
+        logged.style.display = 'none';
+        login.style.display = 'block';
       }
     }
 
     async function verificarSessao() {
       const { data, error } = await supabaseClient.auth.getSession();
 
-      if (error) {
-        console.warn(error);
-      }
+      if (error) console.warn(error);
 
       currentUser = data?.session?.user || null;
       atualizarConta();
@@ -750,8 +727,7 @@
           clearance_width_m,
           status,
           source_name,
-          source_url,
-          verified_at
+          source_url
         `)
         .in('status', ['official', 'verified'])
         .not('latitude', 'is', null)
@@ -759,7 +735,6 @@
 
       if (error) {
         console.error(error);
-        aviso(`Erro ao carregar viadutos: ${error.message}`, 'error');
         return;
       }
 
@@ -795,8 +770,7 @@
           <strong>${textoSeguro(viaduto.name || 'Viaduto')}</strong>
           <p><b>Rodovia:</b> ${textoSeguro(viaduto.road_name || 'Não informada')}</p>
           <p><b>KM:</b> ${textoSeguro(viaduto.km || 'Não informado')}</p>
-          <p><b>Altura livre:</b> ${alturaLivre ? alturaLivre.toFixed(2) + ' m' : 'Não informada'}</p>
-          <p><b>Largura:</b> ${viaduto.clearance_width_m ? Number(viaduto.clearance_width_m).toFixed(2) + ' m' : 'Não informada'}</p>
+          <p><b>Altura:</b> ${alturaLivre ? alturaLivre.toFixed(2) + ' m' : 'Não informada'}</p>
           <p><b>Situação:</b> ${situacao}</p>
           <p><b>Fonte:</b> ${textoSeguro(viaduto.source_name || 'Não informada')}</p>
           ${linkFonte}
@@ -811,6 +785,90 @@
       });
     }
 
+    function adicionarParada(valor = '') {
+      quantidadeParadas++;
+
+      const container = document.getElementById('stopsContainer');
+      const linha = document.createElement('div');
+
+      linha.className = 'stop-row';
+      linha.id = `stopRow${quantidadeParadas}`;
+
+      linha.innerHTML = `
+        <input
+          id="stopInput${quantidadeParadas}"
+          value="${textoSeguro(valor)}"
+          placeholder="Parada ${quantidadeParadas}: cidade, endereço ou ponto"
+        />
+        <button
+          type="button"
+          title="Remover parada"
+          onclick="removerParada(${quantidadeParadas})"
+        >
+          ✕
+        </button>
+      `;
+
+      container.appendChild(linha);
+    }
+
+    async function removerParada(id) {
+      const linha = document.getElementById(`stopRow${id}`);
+
+      if (!linha) return;
+
+      linha.remove();
+
+      /*
+        Se já existe rota calculada, ela é refeita automaticamente
+        sem a parada removida. Se não restar nenhuma parada, a rota
+        continua normalmente da origem para o destino.
+      */
+      if (currentRoute) {
+        aviso('Atualizando a rota sem a parada removida...', 'ok');
+        await calcularRota(true);
+      }
+    }
+
+    function obterParadasInformadas() {
+      const campos = document.querySelectorAll(
+        '#stopsContainer input[id^="stopInput"]'
+      );
+
+      return Array.from(campos)
+        .map(campo => campo.value.trim())
+        .filter(valor => valor.length > 0);
+    }
+
+    function criarMarcadorParada(coordenadas, numero, nome) {
+      return L.marker(coordenadas, {
+        icon: L.divIcon({
+          className: '',
+          html: `
+            <div style="
+              width:32px;
+              height:32px;
+              display:grid;
+              place-items:center;
+              border-radius:50%;
+              background:#146c43;
+              border:3px solid #ffffff;
+              color:#ffffff;
+              font-weight:800;
+              box-shadow:0 2px 8px rgba(0,0,0,.35);
+            ">
+              ${numero}
+            </div>
+          `,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+          popupAnchor: [0, -14]
+        })
+      })
+        .bindPopup(`<strong>Parada ${numero}</strong><br>${textoSeguro(nome)}`)
+        .addTo(stopsLayer);
+    }
+
     function formatarDistancia(metros) {
       return `${(metros / 1000).toFixed(1)} km`;
     }
@@ -818,9 +876,7 @@
     function formatarDuracao(segundos) {
       const minutos = Math.round(segundos / 60);
 
-      if (minutos < 60) {
-        return `${minutos} min`;
-      }
+      if (minutos < 60) return `${minutos} min`;
 
       const horas = Math.floor(minutos / 60);
       const minutosRestantes = minutos % 60;
@@ -831,7 +887,7 @@
     }
 
     async function buscarEndereco(texto) {
-      const response = await fetch(
+      const resposta = await fetch(
         `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(texto)}`,
         {
           headers: {
@@ -840,7 +896,7 @@
         }
       );
 
-      const resultados = await response.json();
+      const resultados = await resposta.json();
 
       if (!resultados.length) {
         throw new Error(`Local não encontrado: ${texto}`);
@@ -877,12 +933,9 @@
             `${ponto[0]}, ${ponto[1]}`;
 
           map.setView(ponto, 14);
-
           aviso('Localização atual definida como origem.');
         },
-        () => {
-          aviso('Não foi possível obter sua localização.', 'error');
-        },
+        () => aviso('Não foi possível obter sua localização.', 'error'),
         {
           enableHighAccuracy: true,
           timeout: 10000
@@ -890,7 +943,7 @@
       );
     }
 
-    async function calcularRota() {
+    async function calcularRota(recalculando = false) {
       const origemTexto = document.getElementById('originInput').value.trim();
       const destinoTexto = document.getElementById('destinationInput').value.trim();
 
@@ -900,7 +953,11 @@
       }
 
       try {
-        aviso('Procurando rotas disponíveis...', 'ok');
+        if (!recalculando) {
+          aviso('Procurando rotas disponíveis...', 'ok');
+        }
+
+        const paradasTexto = obterParadasInformadas();
 
         const origem =
           lerCoordenadas(origemTexto) ||
@@ -910,9 +967,28 @@
           lerCoordenadas(destinoTexto) ||
           await buscarEndereco(destinoTexto);
 
+        const paradasCoordenadas = [];
+
+        for (const parada of paradasTexto) {
+          const coordenada =
+            lerCoordenadas(parada) ||
+            await buscarEndereco(parada);
+
+          paradasCoordenadas.push(coordenada);
+        }
+
+        const todosPontos = [
+          origem,
+          ...paradasCoordenadas,
+          destino
+        ];
+
+        const coordenadasOSRM = todosPontos
+          .map(ponto => `${ponto[1]},${ponto[0]}`)
+          .join(';');
+
         const url =
-          `https://router.project-osrm.org/route/v1/driving/` +
-          `${origem[1]},${origem[0]};${destino[1]},${destino[0]}` +
+          `https://router.project-osrm.org/route/v1/driving/${coordenadasOSRM}` +
           `?overview=full` +
           `&geometries=geojson` +
           `&steps=true` +
@@ -933,17 +1009,39 @@
 
         routeAlternatives = resultado.routes.slice(0, 3);
         selectedRouteIndex = 0;
-        tripStartedForCurrentRoute = false;
+
+        if (!recalculando) {
+          tripStartedForCurrentRoute = false;
+        }
+
+        stopsLayer.clearLayers();
+
+        paradasCoordenadas.forEach((coordenadas, indice) => {
+          criarMarcadorParada(
+            coordenadas,
+            indice + 1,
+            paradasTexto[indice]
+          );
+        });
 
         exibirAlternativasDeRota();
-        selecionarRota(0);
+        selecionarRota(0, recalculando);
 
         document.getElementById('startTripButton').style.display = 'block';
 
-        aviso(
-          `${routeAlternatives.length} opção(ões) de rota encontrada(s).`,
-          'ok'
-        );
+        if (recalculando) {
+          aviso('Rota atualizada com sucesso.', 'ok');
+        } else if (paradasTexto.length) {
+          aviso(
+            `Rota calculada com ${paradasTexto.length} parada(s).`,
+            'ok'
+          );
+        } else {
+          aviso(
+            `${routeAlternatives.length} opção(ões) de rota encontrada(s).`,
+            'ok'
+          );
+        }
       } catch (erro) {
         console.error(erro);
         aviso(`Erro ao calcular rota: ${erro.message}`, 'error');
@@ -980,12 +1078,15 @@
       }).join('');
     }
 
-    function selecionarRota(indice) {
+    function selecionarRota(indice, preservarViagem = false) {
       if (!routeAlternatives[indice]) return;
 
       selectedRouteIndex = indice;
       currentRoute = routeAlternatives[indice];
-      tripStartedForCurrentRoute = false;
+
+      if (!preservarViagem) {
+        tripStartedForCurrentRoute = false;
+      }
 
       if (routeLayer) {
         map.removeLayer(routeLayer);
@@ -1058,9 +1159,9 @@
           } else {
             navigationMarker = L.marker(ponto, {
               title: 'Sua localização'
-            }).addTo(map);
-
-            navigationMarker.bindPopup('Você está aqui');
+            })
+              .bindPopup('Você está aqui')
+              .addTo(map);
           }
 
           map.setView(ponto, 16);
@@ -1074,7 +1175,6 @@
         },
         erro => {
           console.error(erro);
-
           aviso(
             'Não foi possível acompanhar sua localização. Verifique a permissão do GPS.',
             'error'
@@ -1087,10 +1187,7 @@
         }
       );
 
-      aviso(
-        'Viagem iniciada. Dirija com atenção e respeite a sinalização.',
-        'ok'
-      );
+      aviso('Viagem iniciada. Respeite a sinalização da via.', 'ok');
     }
 
     function encerrarViagem() {
@@ -1103,7 +1200,6 @@
       document.getElementById('navigationHud').style.display = 'none';
 
       map.invalidateSize();
-
       aviso('Viagem encerrada.', 'ok');
     }
 
@@ -1158,12 +1254,8 @@
       box.innerHTML = historico.map(viagem => `
         <div class="card">
           <strong>${textoSeguro(viagem.origin)} → ${textoSeguro(viagem.destination)}</strong>
-          <p class="small">
-            ${viagem.distance_km} km · ${viagem.duration_min} min
-          </p>
-          <p class="small">
-            ${new Date(viagem.created_at).toLocaleString('pt-BR')}
-          </p>
+          <p class="small">${viagem.distance_km} km · ${viagem.duration_min} min</p>
+          <p class="small">${new Date(viagem.created_at).toLocaleString('pt-BR')}</p>
         </div>
       `).join('');
     }
