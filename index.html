@@ -2,176 +2,280 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>GPS Caminhoneiro Seguro</title>
+
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIINfQAl0dR5pMZB7K4lR3G9S5p3p3p2p3s=" crossorigin="">
+        crossorigin="">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <style>
-    :root{--green:#0a6b45;--green2:#07583a;--ink:#13231d;--muted:#62716b;--line:#dce6e1;--bg:#f4f7f5;--danger:#bb2e2e}
-    *{box-sizing:border-box} body{margin:0;background:var(--bg);font-family:Arial,Helvetica,sans-serif;color:var(--ink)}
-    header{background:#fff;border-bottom:1px solid var(--line);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px}
-    header h1{font-size:18px;margin:0;color:var(--green)} header small{color:var(--muted)}
-    main{max-width:1180px;margin:0 auto;padding:16px;display:grid;grid-template-columns:360px 1fr;gap:16px}
-    .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;box-shadow:0 2px 10px #1231}
-    h2{font-size:16px;margin:0 0 12px} h3{font-size:14px;margin:18px 0 8px}
-    label{display:block;font-size:12px;font-weight:700;margin:12px 0 5px;color:#44534d}
-    input,button{font:inherit} input{width:100%;border:1px solid #bdcbc5;border-radius:9px;padding:11px}
-    button{border:0;border-radius:9px;padding:11px 12px;font-weight:700;cursor:pointer}
-    .primary{background:var(--green);color:white;width:100%;margin-top:14px}.primary:hover{background:var(--green2)}
-    .outline{background:#fff;border:1px solid var(--green);color:var(--green)}
-    .row{display:flex;gap:8px}.row>*{flex:1}.hint,.status{font-size:12px;color:var(--muted);line-height:1.4}.status{margin-top:10px;padding:9px;background:#eef5f1;border-radius:8px}
-    .results{display:none;border:1px solid var(--line);border-radius:9px;margin-top:6px;overflow:hidden;max-height:190px;overflow-y:auto}
-    .result{display:block;width:100%;text-align:left;border-radius:0;background:#fff;border-bottom:1px solid #edf1ef;padding:10px;font-size:12px;color:#26352f}.result:last-child{border-bottom:0}.result:hover{background:#eff7f3}
-    .map-card{min-height:680px;padding:0;position:relative;overflow:hidden} #map{height:680px;width:100%;background:#dfe8e4}
-    .map-note{position:absolute;z-index:700;right:12px;bottom:14px;background:#fffffff0;padding:8px 10px;border-radius:8px;font-size:11px;box-shadow:0 2px 10px #0002}
-    .map-tools{position:absolute;z-index:700;top:12px;right:12px;display:grid;gap:8px}.map-tools button{background:#fff;box-shadow:0 2px 10px #0003;color:var(--green);width:42px;height:42px;padding:0;font-size:20px}
-    .route-summary{margin-top:12px;border-radius:10px;background:#eff7f3;padding:10px;font-size:13px;display:none}.route-summary strong{color:var(--green)}
-    .truck-details{display:none;margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
-    .truck-details.open{display:block}.safe{color:#087b49}.warn{color:#9b6500}.danger{color:var(--danger)}
-    /* Navegação: mapa próximo e sem poluição visual */
-    body.navigation-mode{overflow:hidden} body.navigation-mode header,body.navigation-mode .planner-card{display:none}
-    body.navigation-mode main{max-width:none;margin:0;padding:0;display:block} body.navigation-mode .map-card{position:fixed;inset:0;border:0;border-radius:0;min-height:100dvh}
-    body.navigation-mode #map{height:100dvh} body.navigation-mode .map-note,body.navigation-mode .map-tools{display:none}
-    .nav-hud{display:none}.navigation-mode .nav-hud{display:flex;position:fixed;z-index:1000;left:12px;right:12px;box-shadow:0 5px 25px #0004}
-    #navTop{top:max(12px,env(safe-area-inset-top));align-items:center;gap:11px;background:#07583af5;color:#fff;padding:12px;border-radius:14px}
-    #navArrow{font-size:30px;width:48px;height:48px;display:grid;place-items:center;background:#ffffff20;border-radius:10px}
-    #navTop strong,#navTop span{display:block}#navTop strong{font-size:15px}#navTop span{font-size:12px;opacity:.9;margin-top:3px}
-    #navBottom{bottom:max(12px,env(safe-area-inset-bottom));justify-content:space-between;align-items:center;background:#fffffff5;padding:12px 14px;border-radius:14px}
-    #navBottom strong{display:block;color:var(--green)}#navBottom span{font-size:12px;color:var(--muted)}#endTrip{background:var(--danger);color:#fff;padding:10px 14px;width:auto}
-    @media(max-width:850px){main{grid-template-columns:1fr}.map-card,#map{min-height:430px;height:430px}.map-card{order:-1}header small{display:none}}
+    :root{
+      --green:#0e6b45; --green-dark:#084b31; --ink:#10251c; --muted:#61706a;
+      --line:#dce6e1; --bg:#f3f7f5; --danger:#bd2536; --white:#fff;
+    }
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;color:var(--ink);background:var(--bg)}
+    button,input,select{font:inherit} button{cursor:pointer;border:0}.hidden{display:none!important}
+    header{position:sticky;top:0;z-index:1100;background:#fff;border-bottom:1px solid var(--line)}
+    .topbar{max-width:1180px;margin:auto;padding:13px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--green-dark)} .brand b{font-size:1.05rem}.brand small{display:block;color:var(--muted);font-weight:400;font-size:.72rem;margin-top:2px}
+    .icon-btn,.btn-secondary{background:#fff;border:1px solid var(--line);padding:10px 12px;border-radius:9px;color:#234}
+    .btn-primary{background:var(--green);color:#fff;padding:12px 15px;border-radius:9px;font-weight:700}.btn-primary:hover{background:var(--green-dark)}
+    .btn-danger{background:var(--danger);color:#fff;padding:10px 12px;border-radius:9px}.btn-danger-outline{border:1px solid var(--danger);color:var(--danger);background:#fff;padding:10px 12px;border-radius:9px}
+    main{max-width:1180px;margin:0 auto;padding:18px;display:grid;grid-template-columns:400px 1fr;gap:18px;align-items:start}
+    .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 3px 12px #163a2a0b}
+    h1,h2,h3,p{margin-top:0} h2{font-size:1.14rem;margin-bottom:5px} .muted{color:var(--muted);font-size:.9rem;line-height:1.45}
+    label{display:grid;gap:6px;font-size:.86rem;font-weight:700;color:#2a4237;margin-top:12px}
+    input,select{width:100%;border:1px solid #cbd8d1;border-radius:9px;padding:11px;background:#fff;color:#173126}
+    input:focus,select:focus{outline:2px solid #95cfb7;border-color:var(--green)}
+    .row{display:flex;gap:9px;align-items:end}.row>*{min-width:0}.grow{flex:1}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+    .quick-row{display:flex;gap:9px;margin-top:10px}.quick-row button{flex:1}.results{border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:8px;max-height:180px;overflow-y:auto}
+    .result{width:100%;text-align:left;background:#fff;padding:10px;border-bottom:1px solid var(--line);color:#263c32;font-size:.85rem}.result:last-child{border-bottom:0}.result:hover{background:#f1faf5}
+    #mapWrap{position:relative;min-height:520px;overflow:hidden;padding:0}.map-title{padding:16px 18px 10px}.map-title h2{margin:0}.map-title p{margin:5px 0 0}
+    #map{height:560px;width:100%;background:#dfeae5}.map-error{padding:22px;color:#8a2030;background:#fff1f2}
+    .status{margin-top:12px;padding:10px 12px;background:#eff8f3;border-left:4px solid var(--green);border-radius:7px;font-size:.86rem;color:#254437}
+    .warning{margin-top:12px;padding:10px 12px;background:#fff9df;border-left:4px solid #d99a00;border-radius:7px;font-size:.84rem;color:#664d00;line-height:1.4}
+    .route-summary{display:flex;gap:14px;margin-top:12px;padding:12px;background:#f4f8f6;border-radius:10px}.route-summary div{display:grid;gap:3px}.route-summary strong{color:var(--green-dark)}
+    .drawer{position:fixed;right:0;top:0;bottom:0;width:min(360px,92vw);z-index:2200;background:#fff;box-shadow:-8px 0 25px #001a0d35;padding:20px;transform:translateX(105%);transition:.2s}.drawer.open{transform:translateX(0)}
+    .drawer-head,.section-title-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}.menu-item{width:100%;margin-top:10px;text-align:left;padding:13px;background:#f4f8f6;border-radius:9px;color:#18362a;font-weight:700}
+    .panel-overlay{position:fixed;inset:0;background:#00150b55;z-index:2100}.side-panel{position:fixed;z-index:2150;top:0;left:0;bottom:0;width:min(480px,100vw);background:#fff;overflow:auto;padding:20px;box-shadow:8px 0 25px #001a0d35}
+    .notice{margin:12px 0;padding:11px;border-radius:8px;background:#fff9df;border-left:4px solid #d99a00;color:#664d00;font-size:.88rem;line-height:1.4}
+    .history-list{display:grid;gap:10px;margin-top:14px}.history-item{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;padding:12px}.history-info{min-width:0;display:grid;gap:5px}.history-info strong{font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.history-info span{font-size:.8rem;color:var(--muted)}
+    .nav-top,.nav-bottom{position:fixed;z-index:1800;left:12px;right:12px;box-shadow:0 6px 24px #001e1038}.nav-top{top:max(12px,env(safe-area-inset-top));display:flex;gap:12px;align-items:center;background:#0a5135f5;color:#fff;padding:13px;border-radius:14px}.turn{font-size:1.8rem;width:44px;text-align:center}.nav-top strong,.nav-top span{display:block}.nav-top span{font-size:.82rem;margin-top:4px;opacity:.9}.nav-bottom{bottom:max(12px,env(safe-area-inset-bottom));background:#fffffff5;border-radius:14px;padding:12px;display:flex;justify-content:space-between;align-items:center}.nav-bottom div{display:grid;gap:3px}.nav-bottom span{font-size:.82rem;color:var(--muted)}
+    body.navigation-mode{overflow:hidden}body.navigation-mode header,body.navigation-mode .plan-card{display:none}body.navigation-mode main{display:block;max-width:none;padding:0;margin:0}body.navigation-mode #mapWrap{position:fixed;z-index:1500;inset:0;border:0;border-radius:0}body.navigation-mode .map-title{display:none}body.navigation-mode #map{height:100dvh}
+    @media(max-width:880px){main{grid-template-columns:1fr}#mapWrap{min-height:430px}#map{height:470px}}@media(max-width:500px){main{padding:10px}.form-grid{grid-template-columns:1fr}.topbar{padding:11px}.brand small{display:none}.row{flex-wrap:wrap}.row .grow{flex-basis:100%}}
   </style>
 </head>
 <body>
-<header><div><h1>GPS Caminhoneiro Seguro</h1><small>Planejamento de rota e navegação para caminhões</small></div><button class="outline" id="truckToggle">🚚 Meu caminhão</button></header>
-
-<main>
-  <section class="card planner-card">
-    <h2>Planejar viagem</h2>
-    <p class="hint">Pesquise por cidade, endereço, rodovia ou use sua localização atual. Confirme placas, peso, altura e regras antes de circular.</p>
-
-    <label for="origin">Origem</label>
-    <div class="row"><input id="origin" autocomplete="off" placeholder="Cidade, endereço ou rodovia"><button class="outline" id="myLocation" title="Usar localização atual">📍</button></div>
-    <div id="originResults" class="results"></div>
-
-    <label for="destination">Destino</label>
-    <input id="destination" autocomplete="off" placeholder="Cidade, endereço ou rodovia">
-    <div id="destResults" class="results"></div>
-
-    <button class="primary" id="routeBtn">Calcular rota</button>
-    <div id="routeSummary" class="route-summary"></div>
-    <div id="status" class="status">Mapa carregado. A área exibida permanece mais próxima para facilitar a visualização regional.</div>
-
-    <div id="truckDetails" class="truck-details">
-      <h3>Configurações do caminhão</h3>
-      <label for="truckName">Identificação</label><input id="truckName" placeholder="Ex.: Carreta LS">
-      <div class="row"><div><label for="truckHeight">Altura (m)</label><input id="truckHeight" type="number" step="0.01" min="0" placeholder="4,40"></div>
-      <div><label for="truckWidth">Largura (m)</label><input id="truckWidth" type="number" step="0.01" min="0" placeholder="2,60"></div></div>
-      <label for="truckMargin">Margem de segurança (m)</label><input id="truckMargin" type="number" step="0.01" min="0" value="0.20">
-      <button class="primary" id="saveTruck">Salvar caminhão</button>
+  <header>
+    <div class="topbar">
+      <div class="brand"><span style="font-size:1.55rem">🚛</span><div><b>GPS Caminhoneiro Seguro</b><small>Planejamento e navegação de viagem</small></div></div>
+      <button id="menuBtn" class="icon-btn" type="button">☰ Menu</button>
     </div>
+  </header>
+
+  <main>
+    <section class="card plan-card">
+      <h2>Planejar viagem</h2>
+      <p class="muted">Pesquise uma cidade, endereço, rodovia ou use sua localização atual.</p>
+
+      <label>Origem
+        <input id="originInput" autocomplete="off" placeholder="Cidade, endereço ou rodovia">
+      </label>
+      <div class="quick-row">
+        <button id="currentLocationBtn" type="button" class="btn-secondary">📍 Estou aqui</button>
+        <button id="searchOriginBtn" type="button" class="btn-secondary">Pesquisar origem</button>
+      </div>
+      <div id="originResults" class="results hidden"></div>
+
+      <label>Destino
+        <input id="destinationInput" autocomplete="off" placeholder="Cidade, endereço ou rodovia">
+      </label>
+      <button id="searchDestinationBtn" type="button" class="btn-secondary" style="width:100%;margin-top:10px">Pesquisar destino</button>
+      <div id="destinationResults" class="results hidden"></div>
+
+      <button id="routeBtn" type="button" class="btn-primary" style="width:100%;margin-top:15px">Calcular rota</button>
+
+      <div id="routeSummary" class="route-summary hidden">
+        <div><span class="muted">Distância</span><strong id="routeDistance">—</strong></div>
+        <div><span class="muted">Tempo estimado</span><strong id="routeDuration">—</strong></div>
+      </div>
+
+      <button id="startNavBtn" type="button" class="btn-primary hidden" style="width:100%;margin-top:12px">Iniciar viagem</button>
+      <div class="warning">A rota é calculada para vias comuns. Sempre confirme placas, altura de viadutos, peso permitido e restrições locais antes de seguir.</div>
+      <div id="status" class="status">Pronto para planejar uma rota.</div>
+    </section>
+
+    <section id="mapWrap" class="card">
+      <div class="map-title"><h2>Mapa e rota</h2><p class="muted">Ao localizar o motorista, o mapa aproxima a região próxima.</p></div>
+      <div id="map"></div>
+    </section>
+  </main>
+
+  <div id="drawerOverlay" class="panel-overlay hidden"></div>
+  <aside id="drawer" class="drawer" aria-label="Menu">
+    <div class="drawer-head"><div><h2>Menu</h2><p id="accountText" class="muted">Não conectado</p></div><button id="closeMenuBtn" class="icon-btn" type="button">✕</button></div>
+    <button id="loginMenuBtn" class="menu-item" type="button">🔐 Entrar / criar conta</button>
+    <button id="menuTruckBtn" class="menu-item" type="button">🚛 Meu caminhão</button>
+    <button id="menuHistoryBtn" class="menu-item" type="button">🕘 Histórico de viagens</button>
+    <button id="logoutBtn" class="menu-item hidden" type="button">↪ Sair da conta</button>
+  </aside>
+
+  <section id="authPanel" class="side-panel hidden">
+    <div class="section-title-row"><div><h2>Entrar</h2><p class="muted">Use seu e-mail para salvar caminhão e histórico.</p></div><button class="icon-btn close-panel" data-close="authPanel">✕</button></div>
+    <div id="supabaseConfigNotice" class="notice hidden">Configure <code>SUPABASE_URL</code> e <code>SUPABASE_ANON_KEY</code> no arquivo para usar login e sincronização.</div>
+    <form id="authForm">
+      <label>E-mail<input id="emailInput" type="email" required placeholder="voce@email.com"></label>
+      <label>Senha<input id="passwordInput" type="password" required minlength="6" placeholder="Mínimo de 6 caracteres"></label>
+      <div class="row" style="margin-top:15px"><button class="btn-primary grow" id="signInBtn" type="submit">Entrar</button><button class="btn-secondary grow" id="signUpBtn" type="button">Criar conta</button></div>
+    </form>
   </section>
 
-  <section class="card map-card">
-    <div id="map"></div>
-    <div class="map-tools"><button id="focusMap" title="Centralizar no motorista">⌖</button><button id="zoomIn" title="Aproximar">+</button><button id="zoomOut" title="Afastar">−</button></div>
-    <div class="map-note">Use + e − ou o gesto de pinça para ajustar o raio mostrado.</div>
+  <section id="truckPanel" class="side-panel hidden">
+    <div class="section-title-row"><div><h2>Meu caminhão</h2><p class="muted">Dados usados para alertas de altura e restrições.</p></div><button class="icon-btn close-panel" data-close="truckPanel">✕</button></div>
+    <div id="truckLoginWarning" class="notice hidden">Entre na sua conta para cadastrar ou alterar o caminhão.</div>
+    <form id="truckForm">
+      <div class="form-grid">
+        <label>Nome do caminhão<input id="truckNickname" type="text" placeholder="Ex.: Scania R 450"></label>
+        <label>Placa<input id="truckPlate" type="text" placeholder="ABC1D23"></label>
+        <label>Tipo<select id="truckType"><option>Carreta</option><option>Bitrem</option><option>Rodotrem</option><option>Truck</option><option>Toco</option><option>Outro</option></select></label>
+        <label>Altura total (m)<input id="truckHeight" type="number" min="1" max="6" step="0.01" placeholder="4.40"></label>
+        <label>Largura (m)<input id="truckWidth" type="number" min="1" max="4" step="0.01" placeholder="2.60"></label>
+        <label>Comprimento (m)<input id="truckLength" type="number" min="1" max="35" step="0.01" placeholder="19.80"></label>
+        <label>Peso bruto (t)<input id="truckWeight" type="number" min="1" max="100" step="0.1" placeholder="57"></label>
+        <label>Margem de segurança (m)<input id="safetyMargin" type="number" min="0" max="2" step="0.05" value="0.30"></label>
+      </div>
+      <button class="btn-primary" id="saveTruckBtn" style="width:100%;margin-top:16px" type="submit">Salvar meu caminhão</button>
+    </form>
   </section>
-</main>
 
-<div id="navTop" class="nav-hud"><div id="navArrow">↑</div><div><strong id="navInstruction">Preparando navegação</strong><span id="navTurnDistance">Aguardando localização</span></div></div>
-<div id="navBottom" class="nav-hud"><div><strong id="navEta">—</strong><span id="navRemaining">—</span></div><button id="endTrip">Encerrar</button></div>
+  <section id="historyPanel" class="side-panel hidden">
+    <div class="section-title-row"><div><h2>Histórico de viagens</h2><p class="muted">Rotas concluídas na sua conta.</p></div><button class="icon-btn close-panel" data-close="historyPanel">✕</button></div>
+    <button id="clearHistoryBtn" class="btn-danger-outline" type="button">Limpar histórico</button>
+    <div id="historyLoginWarning" class="notice hidden">Entre na sua conta para visualizar o histórico.</div>
+    <div id="historyList" class="history-list"></div>
+  </section>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <div id="navTop" class="nav-top hidden"><div id="turnIcon" class="turn">↑</div><div><strong id="navInstruction">Navegação iniciada</strong><span id="navTurnDistance">Aguardando localização</span></div></div>
+  <div id="navBottom" class="nav-bottom hidden"><div><strong id="navEta">—</strong><span id="navRemaining">—</span></div><button id="stopNavBtn" class="btn-danger" type="button">Encerrar</button></div>
+
 <script>
-(() => {
-  const $ = id => document.getElementById(id);
-  const status = text => $('status').textContent = text;
-  const br = n => Number(n).toLocaleString('pt-BR', {maximumFractionDigits: 1});
-  const distance = m => m < 1000 ? Math.round(m)+' m' : br(m/1000)+' km';
-  const duration = s => { const m=Math.round(s/60); return m<60 ? m+' min' : Math.floor(m/60)+' h '+(m%60)+' min'; };
+/* ======= CONFIGURE COM AS CHAVES PÚBLICAS DO SEU PROJETO SUPABASE ======= */
+const SUPABASE_URL = "";
+const SUPABASE_ANON_KEY = "";
+const db = (SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase)
+  ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+  : null;
 
-  // Zoom 15 mostra uma área local/regional menor. Não inicia com o Brasil inteiro.
-  const map = L.map('map', {zoomControl:false, minZoom:4, maxZoom:19}).setView([-15.7939, -47.8828], 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom:19, attribution:'© OpenStreetMap'
-  }).addTo(map);
-  let originPoint=null, destinationPoint=null, route=null, routeLine=null, userMarker=null, watchId=null, navActive=false;
-  let routeSteps=[], lastStep=-1;
+let map, userMarker, routeLayer, originMarker, destinationMarker, navWatchId = null;
+let originPoint = null, destinationPoint = null, routeData = null;
+let activeTrip = null, lastTripGpsPosition = null, navigationActive = false;
 
-  const truckSaved = JSON.parse(localStorage.getItem('gpsTruck') || '{}');
-  $('truckName').value=truckSaved.name||''; $('truckHeight').value=truckSaved.height||''; $('truckWidth').value=truckSaved.width||''; $('truckMargin').value=truckSaved.margin ?? '0.20';
+const $ = id => document.getElementById(id);
+const setStatus = text => $("status").textContent = text;
+const km = meters => meters >= 1000 ? (meters/1000).toFixed(1).replace(".", ",")+" km" : Math.round(meters)+" m";
+const duration = seconds => { const h=Math.floor(seconds/3600), m=Math.round((seconds%3600)/60); return h ? h+" h "+String(m).padStart(2,"0")+" min" : m+" min"; };
+const escapeHtml = text => { const d=document.createElement("div"); d.textContent=text||""; return d.innerHTML; };
+function haversineMeters(a,b,c,d){const R=6371000, p=Math.PI/180, x=(c-a)*p, y=(d-b)*p; const q=Math.sin(x/2)**2+Math.cos(a*p)*Math.cos(c*p)*Math.sin(y/2)**2; return 2*R*Math.atan2(Math.sqrt(q),Math.sqrt(1-q));}
 
-  $('truckToggle').onclick=()=> $('truckDetails').classList.toggle('open');
-  $('saveTruck').onclick=()=>{ localStorage.setItem('gpsTruck', JSON.stringify({name:$('truckName').value,height:$('truckHeight').value,width:$('truckWidth').value,margin:$('truckMargin').value})); status('Dados do caminhão salvos neste navegador.'); };
+function initMap(){
+  if(!window.L){ $("map").innerHTML='<div class="map-error">Não foi possível carregar a biblioteca do mapa. Verifique a conexão com a internet e atualize a página.</div>'; return; }
+  map=L.map("map",{zoomControl:true}).setView([-15.7801,-47.9292],5);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
+  setTimeout(()=>map.invalidateSize(),300);
+  window.addEventListener("resize",()=>map.invalidateSize());
+}
+function setMarker(kind, point, label){
+  const old=kind==="origin"?originMarker:destinationMarker; if(old) map.removeLayer(old);
+  const marker=L.marker([point.lat,point.lon]).addTo(map).bindPopup(label);
+  if(kind==="origin") originMarker=marker; else destinationMarker=marker;
+}
+async function searchPlace(query, target){
+  if(!query.trim()){setStatus("Digite uma cidade, endereço ou rodovia.");return;}
+  setStatus("Pesquisando local...");
+  try{
+    const url="https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&countrycodes=br&q="+encodeURIComponent(query);
+    const res=await fetch(url,{headers:{"Accept-Language":"pt-BR"}});
+    const data=await res.json(); renderPlaceResults(data,target);
+    setStatus(data.length ? "Selecione um local encontrado." : "Nenhum local foi encontrado.");
+  }catch(e){setStatus("Falha ao pesquisar. Verifique sua conexão.");}
+}
+function renderPlaceResults(items,target){
+  const box=$(target==="origin"?"originResults":"destinationResults"); box.innerHTML="";
+  if(!items.length){box.classList.add("hidden");return;}
+  items.forEach(item=>{const b=document.createElement("button");b.type="button";b.className="result";b.textContent=item.display_name;b.onclick=()=>selectPlace({lat:+item.lat,lon:+item.lon,label:item.display_name},target);box.appendChild(b);});
+  box.classList.remove("hidden");
+}
+function selectPlace(point,target){
+  if(target==="origin"){originPoint=point;$("originInput").value=point.label;setMarker("origin",point,"Origem");$("originResults").classList.add("hidden");}
+  else{destinationPoint=point;$("destinationInput").value=point.label;setMarker("destination",point,"Destino");$("destinationResults").classList.add("hidden");}
+  map.flyTo([point.lat,point.lon],15,{duration:.5});
+}
+function currentLocation(){
+  if(!navigator.geolocation){setStatus("Este navegador não oferece geolocalização.");return;}
+  setStatus("Obtendo sua localização...");
+  navigator.geolocation.getCurrentPosition(p=>{
+    const point={lat:p.coords.latitude,lon:p.coords.longitude,label:"Minha localização atual"};
+    selectPlace(point,"origin"); map.flyTo([point.lat,point.lon],16,{duration:.6}); setStatus("Origem definida como sua localização atual.");
+  },()=>setStatus("Não foi possível obter sua localização. Autorize o acesso ao GPS."),{enableHighAccuracy:true,timeout:15000,maximumAge:10000});
+}
+async function calculateRoute(){
+  if(!originPoint || !destinationPoint){setStatus("Defina a origem e o destino antes de calcular.");return;}
+  setStatus("Calculando rota...");
+  try{
+    const url=`https://router.project-osrm.org/route/v1/driving/${originPoint.lon},${originPoint.lat};${destinationPoint.lon},${destinationPoint.lat}?overview=full&geometries=geojson&steps=true`;
+    const response=await fetch(url);const json=await response.json();
+    if(json.code!=="Ok"||!json.routes?.[0]) throw new Error("Sem rota");
+    const route=json.routes[0];routeData={route};
+    if(routeLayer)map.removeLayer(routeLayer);
+    const coords=route.geometry.coordinates.map(x=>[x[1],x[0]]);
+    routeLayer=L.polyline(coords,{color:"#0e6b45",weight:6,opacity:.9}).addTo(map);
+    map.fitBounds(routeLayer.getBounds(),{padding:[45,45],maxZoom:14});
+    $("routeDistance").textContent=km(route.distance);$("routeDuration").textContent=duration(route.duration);$("routeSummary").classList.remove("hidden");$("startNavBtn").classList.remove("hidden");
+    setStatus("Rota calculada. Confira restrições e placas antes de iniciar.");
+  }catch(e){console.error(e);setStatus("Não foi possível calcular esta rota.");}
+}
+async function getLoggedUser(){if(!db)return null;const {data}=await db.auth.getUser();return data?.user||null;}
+function openPanel(id){$("drawer").classList.remove("open");$("drawerOverlay").classList.add("hidden");document.querySelectorAll(".side-panel").forEach(x=>x.classList.add("hidden"));$(id).classList.remove("hidden");}
+async function refreshAccount(){
+  const user=await getLoggedUser(); $("accountText").textContent=user?user.email:"Não conectado"; $("loginMenuBtn").classList.toggle("hidden",!!user);$("logoutBtn").classList.toggle("hidden",!user);
+}
+async function requireLogin(message){
+  const u=await getLoggedUser();if(u)return u;setStatus(message||"Entre na sua conta para continuar.");openPanel("authPanel");return null;
+}
+async function signIn(ev){ev.preventDefault();if(!db){$("supabaseConfigNotice").classList.remove("hidden");return;}const {error}=await db.auth.signInWithPassword({email:$("emailInput").value.trim(),password:$("passwordInput").value});if(error){alert(error.message);return;}$("authPanel").classList.add("hidden");await refreshAccount();setStatus("Login realizado.");}
+async function signUp(){if(!db){$("supabaseConfigNotice").classList.remove("hidden");return;}const {error}=await db.auth.signUp({email:$("emailInput").value.trim(),password:$("passwordInput").value});if(error){alert(error.message);return;}alert("Conta criada. Confirme o e-mail caso seu projeto exija confirmação.");}
+async function openTruck(){
+  openPanel("truckPanel");const user=await getLoggedUser();$("truckLoginWarning").classList.toggle("hidden",!!user);$("truckForm").querySelectorAll("input,select,button").forEach(x=>x.disabled=!user);if(!user)return;
+  const {data}=await db.from("vehicle_profiles").select("*").eq("user_id",user.id).maybeSingle();if(!data)return;
+  $("truckNickname").value=data.nickname||"";$("truckPlate").value=data.plate||"";$("truckType").value=data.truck_type||"Carreta";$("truckHeight").value=data.height_m||"";$("truckWidth").value=data.width_m||"";$("truckLength").value=data.length_m||"";$("truckWeight").value=data.weight_t||"";$("safetyMargin").value=data.safety_margin_m??.30;
+}
+async function saveTruck(ev){
+  ev.preventDefault();const user=await requireLogin("Entre para salvar os dados do caminhão.");if(!user)return;
+  const row={user_id:user.id,nickname:$("truckNickname").value.trim(),plate:$("truckPlate").value.trim().toUpperCase(),truck_type:$("truckType").value,height_m:Number($("truckHeight").value||0),width_m:Number($("truckWidth").value||0),length_m:Number($("truckLength").value||0),weight_t:Number($("truckWeight").value||0),safety_margin_m:Number($("safetyMargin").value||.3),updated_at:new Date().toISOString()};
+  const {error}=await db.from("vehicle_profiles").upsert(row,{onConflict:"user_id"});if(error){alert(error.message);return;}setStatus("Dados do caminhão salvos na sua conta.");
+}
+function startTripRecording(user){activeTrip={userId:user.id,startedAt:new Date(),originLabel:$("originInput").value.trim()||"Origem não informada",destinationLabel:$("destinationInput").value.trim()||"Destino não informado",plannedDistanceKm:+(routeData.route.distance/1000).toFixed(2),traveledDistanceKm:0};lastTripGpsPosition=null;}
+function registerGps(lat,lon,accuracy){if(!activeTrip||(accuracy&&accuracy>80))return;if(lastTripGpsPosition){const d=haversineMeters(lastTripGpsPosition.lat,lastTripGpsPosition.lon,lat,lon);if(d>=3&&d<=1500)activeTrip.traveledDistanceKm+=d/1000;}lastTripGpsPosition={lat,lon};}
+function instructionText(step){const type=step?.maneuver?.type||"continue";const mod=step?.maneuver?.modifier||"";const road=step?.name?` na ${step.name}`:"";if(type==="arrive")return"Você chegou ao destino";if(type==="depart")return"Continue em frente"+road;const words={left:"Vire à esquerda",right:"Vire à direita",slight_left:"Mantenha-se à esquerda",slight_right:"Mantenha-se à direita",uturn:"Faça o retorno",straight:"Siga em frente"};return (words[mod]||"Siga em frente")+road;}
+function turnSymbol(step){const m=step?.maneuver?.modifier;return ({left:"←",right:"→",slight_left:"↖",slight_right:"↗",uturn:"↩"})[m]||"↑";}
+function updateNav(lat,lon){
+  const steps=routeData?.route?.legs?.flatMap(l=>l.steps||[])||[];if(!steps.length)return;
+  let best=null,idx=0,bestD=Infinity;steps.forEach((s,i)=>{const q=s.maneuver?.location;if(!q)return;const d=haversineMeters(lat,lon,q[1],q[0]);if(d<bestD){bestD=d;best=s;idx=i;}});
+  if(!best)return;$("turnIcon").textContent=turnSymbol(best);$("navInstruction").textContent=instructionText(best);$("navTurnDistance").textContent=bestD<30?"Faça a manobra agora":"Em aproximadamente "+km(bestD);
+  const p=steps.length>1?idx/(steps.length-1):0;$("navEta").textContent="Chegada em "+duration(routeData.route.duration*(1-p));$("navRemaining").textContent=km(routeData.route.distance*(1-p))+" restantes";
+}
+async function startNavigation(){
+  if(!routeData?.route){setStatus("Calcule uma rota antes de iniciar.");return;}
+  const user=await requireLogin("Entre na sua conta para iniciar e salvar suas viagens.");if(!user)return;
+  startTripRecording(user);navigationActive=true;document.body.classList.add("navigation-mode");$("navTop").classList.remove("hidden");$("navBottom").classList.remove("hidden");setTimeout(()=>map.invalidateSize(),250);
+  if(!navigator.geolocation){setStatus("Navegação iniciada sem GPS.");return;}
+  navWatchId=navigator.geolocation.watchPosition(p=>{const {latitude:lat,longitude:lon,accuracy}=p.coords;registerGps(lat,lon,accuracy);if(!userMarker)userMarker=L.marker([lat,lon]).addTo(map).bindPopup("Sua localização");else userMarker.setLatLng([lat,lon]);updateNav(lat,lon);map.flyTo([lat,lon],17,{animate:true,duration:.45});},()=>setStatus("Não foi possível acompanhar sua localização."),{enableHighAccuracy:true,maximumAge:5000,timeout:15000});
+}
+async function stopNavigation(){
+  if(navWatchId!==null){navigator.geolocation.clearWatch(navWatchId);navWatchId=null;}
+  if(activeTrip&&db){const ended=new Date();const row={user_id:activeTrip.userId,origin_label:activeTrip.originLabel,destination_label:activeTrip.destinationLabel,started_at:activeTrip.startedAt.toISOString(),ended_at:ended.toISOString(),duration_seconds:Math.max(0,Math.round((ended-activeTrip.startedAt)/1000)),planned_distance_km:activeTrip.plannedDistanceKm,traveled_distance_km:+activeTrip.traveledDistanceKm.toFixed(2)};const {error}=await db.from("trip_history").insert(row);setStatus(error?"Viagem encerrada, mas não foi possível salvar o histórico.":"Viagem encerrada e salva no histórico.");}
+  activeTrip=null;lastTripGpsPosition=null;navigationActive=false;document.body.classList.remove("navigation-mode");$("navTop").classList.add("hidden");$("navBottom").classList.add("hidden");setTimeout(()=>map.invalidateSize(),250);
+}
+async function openHistory(){
+  openPanel("historyPanel");const user=await getLoggedUser();$("historyLoginWarning").classList.toggle("hidden",!!user);const list=$("historyList");list.innerHTML="";if(!user)return;
+  const {data,error}=await db.from("trip_history").select("*").order("started_at",{ascending:false});if(error){list.innerHTML="<p class='muted'>Não foi possível carregar o histórico.</p>";return;}
+  if(!data.length){list.innerHTML="<p class='muted'>Nenhuma viagem salva ainda.</p>";return;}
+  list.innerHTML=data.map(t=>`<article class="history-item"><div class="history-info"><strong>${escapeHtml(t.origin_label)} → ${escapeHtml(t.destination_label)}</strong><span>${new Date(t.started_at).toLocaleDateString("pt-BR")} · ${duration(t.duration_seconds)} · ${Number(t.traveled_distance_km||0).toFixed(1)} km percorridos</span></div><button class="btn-danger" data-trip="${t.id}" type="button">Apagar</button></article>`).join("");
+  list.querySelectorAll("[data-trip]").forEach(b=>b.onclick=()=>deleteTrip(b.dataset.trip));
+}
+async function deleteTrip(id){if(!confirm("Apagar esta viagem do histórico?"))return;const {error}=await db.from("trip_history").delete().eq("id",id);if(error)alert(error.message);else openHistory();}
+async function clearHistory(){const user=await requireLogin();if(!user||!confirm("Apagar todo o histórico de viagens?"))return;const {error}=await db.from("trip_history").delete().eq("user_id",user.id);if(error)alert(error.message);else openHistory();}
 
-  function pointIcon(color, label){ return L.divIcon({className:'', html:`<div style="width:28px;height:28px;border-radius:50%;background:${color};border:3px solid white;box-shadow:0 2px 8px #0006;color:white;display:grid;place-items:center;font-weight:bold;font-size:13px">${label}</div>`, iconSize:[28,28],iconAnchor:[14,14]}); }
-  function setMarker(p, type) {
-    if (p.marker) map.removeLayer(p.marker);
-    p.marker=L.marker([p.lat,p.lon],{icon:pointIcon(type==='origin'?'#0a6b45':'#b32d2e',type==='origin'?'A':'B')}).addTo(map).bindPopup(p.name);
-  }
-  async function search(query) {
-    const url='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=br&q='+encodeURIComponent(query);
-    const r=await fetch(url,{headers:{'Accept-Language':'pt-BR'}}); if(!r.ok) throw new Error('Pesquisa indisponível'); return r.json();
-  }
-  function attachSearch(inputId, resultId, callback) {
-    let timer;
-    $(inputId).addEventListener('input',()=>{clearTimeout(timer); const q=$(inputId).value.trim(); if(q.length<3){$(resultId).style.display='none';return;}
-      timer=setTimeout(async()=>{try{const list=await search(q); const box=$(resultId); box.innerHTML=''; list.forEach(x=>{const b=document.createElement('button');b.className='result';b.textContent=x.display_name;b.onclick=()=>{callback({lat:+x.lat,lon:+x.lon,name:x.display_name});$(inputId).value=x.display_name;box.style.display='none';map.flyTo([+x.lat,+x.lon],15,{duration:.6});};box.appendChild(b);});box.style.display=list.length?'block':'none';}catch(e){status('Não foi possível pesquisar este local agora.');}},450);
-    });
-  }
-  attachSearch('origin','originResults',p=>{originPoint=p;setMarker(p,'origin');});
-  attachSearch('destination','destResults',p=>{destinationPoint=p;setMarker(p,'destination');});
-
-  function setUser(lat,lng, follow=false) {
-    if(!userMarker) userMarker=L.marker([lat,lng],{icon:pointIcon('#166bd3','●')}).addTo(map).bindPopup('Sua localização');
-    else userMarker.setLatLng([lat,lng]);
-    if(follow) map.flyTo([lat,lng],17,{duration:.55}); // raio menor durante navegação
-  }
-  $('myLocation').onclick=()=> {
-    if(!navigator.geolocation){status('Geolocalização não é suportada neste navegador.');return;}
-    status('Obtendo sua localização...');
-    navigator.geolocation.getCurrentPosition(pos=>{
-      const {latitude,longitude}=pos.coords; originPoint={lat:latitude,lon:longitude,name:'Minha localização atual'}; $('origin').value=originPoint.name;setMarker(originPoint,'origin');setUser(latitude,longitude);map.flyTo([latitude,longitude],16,{duration:.7});status('Origem definida como sua localização atual.');
-    },e=>status('Não foi possível obter sua localização: '+e.message),{enableHighAccuracy:true,timeout:12000});
-  };
-  $('focusMap').onclick=()=>{if(userMarker){map.flyTo(userMarker.getLatLng(), navActive?17:16,{duration:.5});}else status('Use “Estou aqui” ou inicie a navegação para centralizar.');};
-  $('zoomIn').onclick=()=>map.zoomIn();$('zoomOut').onclick=()=>map.zoomOut();
-
-  function nearestStep(lat,lng){
-    let best=null,bestD=Infinity; routeSteps.forEach((s,i)=>{const c=s.maneuver?.location;if(!c)return; const d=map.distance([lat,lng],[c[1],c[0]]); if(d<bestD){bestD=d;best={step:s,index:i,distance:d};}});return best;
-  }
-  function symbol(s){const m=s?.maneuver?.modifier||'';return ({left:'←',right:'→',slight_left:'↖',slight_right:'↗',sharp_left:'↙',sharp_right:'↘',uturn:'↩'}[m]||'↑');}
-  function instruction(s){const name=s?.name ? ' na '+s.name : '';const type=s?.maneuver?.type; if(type==='arrive')return 'Você chegou ao destino'; if(type==='depart')return 'Siga em frente'+name;const m=s?.maneuver?.modifier||'straight';const t={left:'Vire à esquerda',right:'Vire à direita',slight_left:'Mantenha-se à esquerda',slight_right:'Mantenha-se à direita',sharp_left:'Faça uma curva fechada à esquerda',sharp_right:'Faça uma curva fechada à direita',uturn:'Faça o retorno',straight:'Siga em frente'}[m]||'Siga em frente';return t+name;}
-  function updateHud(lat,lng){
-    const n=nearestStep(lat,lng);if(!n)return;$('navArrow').textContent=symbol(n.step);$('navInstruction').textContent=instruction(n.step);$('navTurnDistance').textContent=n.distance<30?'Faça a manobra agora':'Em '+distance(n.distance);
-    const fraction=routeSteps.length>1?n.index/(routeSteps.length-1):0; const remaining=Math.max(0,route.distance*(1-fraction)), eta=Math.max(0,route.duration*(1-fraction));
-    $('navEta').textContent='Chegada em '+duration(eta);$('navRemaining').textContent=distance(remaining)+' restantes';
-  }
-  function beginNavigation(){
-    if(!route){status('Calcule uma rota antes de iniciar a viagem.');return;}
-    navActive=true;document.body.classList.add('navigation-mode');map.invalidateSize();
-    if(!navigator.geolocation){status('Geolocalização indisponível.');return;}
-    watchId=navigator.geolocation.watchPosition(pos=>{const {latitude,longitude}=pos.coords;setUser(latitude,longitude,true);updateHud(latitude,longitude);},e=>status('Falha na localização: '+e.message),{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
-  }
-  function endNavigation(){navActive=false;document.body.classList.remove('navigation-mode');if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}setTimeout(()=>map.invalidateSize(),100);status('Navegação encerrada.');}
-  $('endTrip').onclick=endNavigation;
-
-  $('routeBtn').onclick=async()=>{
-    if(!originPoint||!destinationPoint){status('Selecione uma origem e um destino nos resultados da pesquisa.');return;}
-    try{
-      status('Calculando rota...');
-      const url=`https://router.project-osrm.org/route/v1/driving/${originPoint.lon},${originPoint.lat};${destinationPoint.lon},${destinationPoint.lat}?overview=full&geometries=geojson&steps=true`;
-      const res=await fetch(url);const data=await res.json();if(!data.routes?.length)throw new Error('Rota indisponível');
-      route=data.routes[0];routeSteps=route.legs.flatMap(l=>l.steps||[]);
-      if(routeLine)map.removeLayer(routeLine);routeLine=L.geoJSON(route.geometry,{style:{color:'#0a6b45',weight:6,opacity:.9}}).addTo(map);
-      // A rota é enquadrada com limite de aproximação; trajetos curtos ficam mais próximos.
-      map.fitBounds(routeLine.getBounds(),{padding:[55,55],maxZoom:15,animate:true});
-      $('routeSummary').style.display='block';$('routeSummary').innerHTML=`<strong>${distance(route.distance)}</strong> · ${duration(route.duration)}<br><button class="primary" style="margin-top:10px" id="startTrip">Iniciar viagem</button>`;
-      $('startTrip').onclick=beginNavigation;
-      status('Rota calculada. Ao iniciar, o mapa acompanhará sua posição com zoom aproximado.');
-    }catch(e){status('Não foi possível calcular a rota. Tente novamente em instantes.');}
-  };
-})();
+window.addEventListener("load",()=>{
+  initMap(); if(!db)$("supabaseConfigNotice").classList.remove("hidden"); refreshAccount();
+  $("menuBtn").onclick=()=>{$("drawer").classList.add("open");$("drawerOverlay").classList.remove("hidden")}; const closeMenu=()=>{$("drawer").classList.remove("open");$("drawerOverlay").classList.add("hidden")};$("closeMenuBtn").onclick=closeMenu;$("drawerOverlay").onclick=closeMenu;
+  $("loginMenuBtn").onclick=()=>openPanel("authPanel");$("menuTruckBtn").onclick=openTruck;$("menuHistoryBtn").onclick=openHistory;$("logoutBtn").onclick=async()=>{await db.auth.signOut();await refreshAccount();setStatus("Sessão encerrada.");};
+  document.querySelectorAll(".close-panel").forEach(b=>b.onclick=()=>$(b.dataset.close).classList.add("hidden"));
+  $("authForm").onsubmit=signIn;$("signUpBtn").onclick=signUp;$("truckForm").onsubmit=saveTruck;$("clearHistoryBtn").onclick=clearHistory;
+  $("currentLocationBtn").onclick=currentLocation;$("searchOriginBtn").onclick=()=>searchPlace($("originInput").value,"origin");$("searchDestinationBtn").onclick=()=>searchPlace($("destinationInput").value,"destination");$("routeBtn").onclick=calculateRoute;$("startNavBtn").onclick=startNavigation;$("stopNavBtn").onclick=stopNavigation;
+});
 </script>
 <script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/vce701823e78c4301a35b7e07294d87301792088814092" integrity="sha512-UKNk8GbxkABxKcXYuLkO16EleLGUkcvJWtpSNmExE0Too3ZaFAxTscNWEc1OdAv5/BikHawapSCaiD2XCmp+Bw==" data-cf-beacon='{"version":"2024.11.0","token":"55d6c902a8a143b1ab6c5051b2a1f75b","spa":2}' crossorigin="anonymous"></script>
 </body>
