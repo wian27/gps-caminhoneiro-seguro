@@ -314,6 +314,15 @@
       font-size: 13px;
     }
 
+    #voiceButton {
+      white-space: nowrap;
+    }
+
+    #voiceButton.voice-off {
+      background: #5c6c62;
+      color: #fff;
+    }
+
     body.navigation-mode .topbar,
     body.navigation-mode .route-box {
       display: none;
@@ -327,6 +336,7 @@
       .topbar h1 { font-size: 14px; }
       .route-box { top: 66px; }
       .route-actions { flex-direction: column; }
+      .navigation-hud { align-items: flex-start; flex-direction: column; }
     }
   </style>
 </head>
@@ -349,11 +359,7 @@
 
     <div id="stopsContainer"></div>
 
-    <button
-      class="btn secondary full"
-      style="margin: 5px 0 9px"
-      onclick="adicionarParada()"
-    >
+    <button class="btn secondary full" style="margin:5px 0 9px" onclick="adicionarParada()">
       + Adicionar parada
     </button>
 
@@ -371,11 +377,7 @@
 
     <div id="routeAlternatives" class="route-alternatives"></div>
 
-    <button
-      id="startTripButton"
-      class="btn full start-trip-button"
-      onclick="iniciarViagem()"
-    >
+    <button id="startTripButton" class="btn full start-trip-button" onclick="iniciarViagem()">
       ▶ Iniciar viagem
     </button>
   </section>
@@ -468,11 +470,6 @@
         <strong>🟡 Não confirmado</strong>
         <p class="small">Faltam dados do caminhão ou da altura do viaduto.</p>
       </div>
-
-      <p class="small">
-        O mapa mostra somente viadutos classificados como
-        <b>official</b> ou <b>verified</b>. Sempre siga a sinalização da via.
-      </p>
     </section>
   </div>
 
@@ -484,7 +481,15 @@
       </div>
     </div>
 
-    <button class="btn danger" onclick="encerrarViagem()">Encerrar</button>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="voiceButton" class="btn secondary" type="button" onclick="alternarVoz()">
+        🔊 Voz ativa
+      </button>
+
+      <button class="btn danger" type="button" onclick="encerrarViagem()">
+        Encerrar
+      </button>
+    </div>
   </div>
 
   <script>
@@ -505,6 +510,12 @@
     let quantidadeParadas = 0;
     let tripStartedForCurrentRoute = false;
 
+    /* Atualização exclusiva de voz */
+    let vozAtiva = localStorage.getItem('voiceEnabled') !== 'false';
+    let etapasFaladas = new Set();
+    let ultimaMensagemVoz = '';
+    let ultimoAvisoVozEm = 0;
+
     function aviso(texto, tipo = 'ok') {
       const box = document.getElementById('notice');
       box.textContent = texto;
@@ -513,6 +524,139 @@
       setTimeout(() => {
         box.classList.remove('show');
       }, 5000);
+    }
+
+    function atualizarBotaoVoz() {
+      const botao = document.getElementById('voiceButton');
+
+      if (!botao) return;
+
+      if (vozAtiva) {
+        botao.textContent = '🔊 Voz ativa';
+        botao.classList.remove('voice-off');
+      } else {
+        botao.textContent = '🔇 Voz desativada';
+        botao.classList.add('voice-off');
+      }
+    }
+
+    function alternarVoz() {
+      vozAtiva = !vozAtiva;
+      localStorage.setItem('voiceEnabled', vozAtiva ? 'true' : 'false');
+
+      if (!vozAtiva) {
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+
+        aviso('Comandos por voz desativados.', 'warn');
+      } else {
+        aviso('Comandos por voz ativados.', 'ok');
+        falar('Comandos por voz ativados.', true);
+      }
+
+      atualizarBotaoVoz();
+    }
+
+    function falar(texto, prioridade = false) {
+      if (!vozAtiva || !('speechSynthesis' in window)) return;
+
+      const agora = Date.now();
+
+      if (
+        !prioridade &&
+        texto === ultimaMensagemVoz &&
+        agora - ultimoAvisoVozEm < 12000
+      ) {
+        return;
+      }
+
+      if (prioridade) {
+        window.speechSynthesis.cancel();
+      }
+
+      const mensagem = new SpeechSynthesisUtterance(texto);
+      mensagem.lang = 'pt-BR';
+      mensagem.rate = 1;
+      mensagem.pitch = 1;
+      mensagem.volume = 1;
+
+      window.speechSynthesis.speak(mensagem);
+
+      ultimaMensagemVoz = texto;
+      ultimoAvisoVozEm = agora;
+    }
+
+    function distanciaEntrePontos(lat1, lon1, lat2, lon2) {
+      const raioTerra = 6371000;
+      const lat1Rad = lat1 * Math.PI / 180;
+      const lat2Rad = lat2 * Math.PI / 180;
+      const diferencaLat = (lat2 - lat1) * Math.PI / 180;
+      const diferencaLon = (lon2 - lon1) * Math.PI / 180;
+
+      const a =
+        Math.sin(diferencaLat / 2) * Math.sin(diferencaLat / 2) +
+        Math.cos(lat1Rad) *
+        Math.cos(lat2Rad) *
+        Math.sin(diferencaLon / 2) *
+        Math.sin(diferencaLon / 2);
+
+      return raioTerra * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+    }
+
+    function criarTextoDaManobra(etapa) {
+      const manobra = etapa.maneuver || {};
+      const tipo = manobra.type || '';
+      const direcao = manobra.modifier || '';
+      const via = etapa.name || '';
+
+      let instrucao = 'continue seguindo a rota';
+
+      if (tipo === 'turn') {
+        if (direcao === 'left') instrucao = 'vire à esquerda';
+        else if (direcao === 'right') instrucao = 'vire à direita';
+        else if (direcao === 'slight left') instrucao = 'mantenha-se levemente à esquerda';
+        else if (direcao === 'slight right') instrucao = 'mantenha-se levemente à direita';
+        else instrucao = 'faça a próxima conversão';
+      } else if (tipo === 'roundabout' || tipo === 'rotary') {
+        instrucao = 'entre na rotatória';
+      } else if (tipo === 'merge') {
+        instrucao = 'acesse a via à frente';
+      } else if (tipo === 'fork') {
+        instrucao = 'mantenha-se na bifurcação indicada';
+      } else if (tipo === 'arrive') {
+        instrucao = 'você chegou ao destino';
+      } else if (tipo === 'depart') {
+        instrucao = 'siga pela via indicada';
+      }
+
+      return via ? `${instrucao} em direção a ${via}` : instrucao;
+    }
+
+    function verificarInstrucoesVoz(latitudeAtual, longitudeAtual) {
+      if (!vozAtiva || !currentRoute || !currentRoute.legs) return;
+
+      const etapas = currentRoute.legs.flatMap(leg => leg.steps || []);
+
+      for (let indice = 0; indice < etapas.length; indice++) {
+        const etapa = etapas[indice];
+        const localManobra = etapa.maneuver?.location;
+
+        if (!localManobra || etapasFaladas.has(indice)) continue;
+
+        const distancia = distanciaEntrePontos(
+          latitudeAtual,
+          longitudeAtual,
+          localManobra[1],
+          localManobra[0]
+        );
+
+        if (distancia <= 350) {
+          falar(`Em breve, ${criarTextoDaManobra(etapa)}.`);
+          etapasFaladas.add(indice);
+          break;
+        }
+      }
     }
 
     function iniciarSupabase() {
@@ -586,7 +730,6 @@
 
     function carregarPerfilCaminhao() {
       const perfil = obterPerfilCaminhao();
-
       document.getElementById('truckName').value = perfil.name || '';
       document.getElementById('truckHeight').value = perfil.height_m || '';
       document.getElementById('truckWidth').value = perfil.width_m || '';
@@ -800,11 +943,7 @@
           value="${textoSeguro(valor)}"
           placeholder="Parada ${quantidadeParadas}: cidade, endereço ou ponto"
         />
-        <button
-          type="button"
-          title="Remover parada"
-          onclick="removerParada(${quantidadeParadas})"
-        >
+        <button type="button" title="Remover parada" onclick="removerParada(${quantidadeParadas})">
           ✕
         </button>
       `;
@@ -819,11 +958,6 @@
 
       linha.remove();
 
-      /*
-        Se já existe rota calculada, ela é refeita automaticamente
-        sem a parada removida. Se não restar nenhuma parada, a rota
-        continua normalmente da origem para o destino.
-      */
       if (currentRoute) {
         aviso('Atualizando a rota sem a parada removida...', 'ok');
         await calcularRota(true);
@@ -852,13 +986,11 @@
               place-items:center;
               border-radius:50%;
               background:#146c43;
-              border:3px solid #ffffff;
+              border:3px solid:#ffffff;
               color:#ffffff;
               font-weight:800;
               box-shadow:0 2px 8px rgba(0,0,0,.35);
-            ">
-              ${numero}
-            </div>
+            ">${numero}</div>
           `,
           iconSize: [32, 32],
           iconAnchor: [16, 16],
@@ -890,9 +1022,7 @@
       const resposta = await fetch(
         `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(texto)}`,
         {
-          headers: {
-            'Accept-Language': 'pt-BR'
-          }
+          headers: { 'Accept-Language': 'pt-BR' }
         }
       );
 
@@ -1009,6 +1139,7 @@
 
         routeAlternatives = resultado.routes.slice(0, 3);
         selectedRouteIndex = 0;
+        etapasFaladas = new Set();
 
         if (!recalculando) {
           tripStartedForCurrentRoute = false;
@@ -1032,15 +1163,9 @@
         if (recalculando) {
           aviso('Rota atualizada com sucesso.', 'ok');
         } else if (paradasTexto.length) {
-          aviso(
-            `Rota calculada com ${paradasTexto.length} parada(s).`,
-            'ok'
-          );
+          aviso(`Rota calculada com ${paradasTexto.length} parada(s).`, 'ok');
         } else {
-          aviso(
-            `${routeAlternatives.length} opção(ões) de rota encontrada(s).`,
-            'ok'
-          );
+          aviso(`${routeAlternatives.length} opção(ões) de rota encontrada(s).`, 'ok');
         }
       } catch (erro) {
         console.error(erro);
@@ -1057,10 +1182,7 @@
       }
 
       container.innerHTML = routeAlternatives.map((rota, indice) => {
-        const titulo =
-          indice === 0
-            ? 'Rota principal'
-            : `Alternativa ${indice}`;
+        const titulo = indice === 0 ? 'Rota principal' : `Alternativa ${indice}`;
 
         return `
           <button
@@ -1068,11 +1190,7 @@
             onclick="selecionarRota(${indice})"
           >
             <strong>${titulo}</strong>
-            <span>
-              ${formatarDistancia(rota.distance)}
-              ·
-              ${formatarDuracao(rota.duration)}
-            </span>
+            <span>${formatarDistancia(rota.distance)} · ${formatarDuracao(rota.duration)}</span>
           </button>
         `;
       }).join('');
@@ -1083,6 +1201,7 @@
 
       selectedRouteIndex = indice;
       currentRoute = routeAlternatives[indice];
+      etapasFaladas = new Set();
 
       if (!preservarViagem) {
         tripStartedForCurrentRoute = false;
@@ -1121,6 +1240,10 @@
 
       document.getElementById('navigationInfo').textContent =
         `Rota selecionada: ${formatarDistancia(currentRoute.distance)} · ${formatarDuracao(currentRoute.duration)}`;
+
+      atualizarBotaoVoz();
+      etapasFaladas = new Set();
+      falar('Viagem iniciada. Siga a rota indicada.', true);
 
       map.invalidateSize();
 
@@ -1172,9 +1295,15 @@
 
           document.getElementById('navigationInfo').textContent =
             `Localização atualizada · Velocidade: ${velocidadeKmH} km/h`;
+
+          verificarInstrucoesVoz(
+            posicao.coords.latitude,
+            posicao.coords.longitude
+          );
         },
         erro => {
           console.error(erro);
+
           aviso(
             'Não foi possível acompanhar sua localização. Verifique a permissão do GPS.',
             'error'
@@ -1196,10 +1325,19 @@
         navigationWatchId = null;
       }
 
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+
       document.body.classList.remove('navigation-mode');
       document.getElementById('navigationHud').style.display = 'none';
 
       map.invalidateSize();
+
+      if (vozAtiva) {
+        falar('Viagem encerrada.', true);
+      }
+
       aviso('Viagem encerrada.', 'ok');
     }
 
@@ -1283,6 +1421,7 @@
     document.addEventListener('DOMContentLoaded', async () => {
       iniciarMapa();
       carregarPerfilCaminhao();
+      atualizarBotaoVoz();
 
       if (iniciarSupabase()) {
         await verificarSessao();
