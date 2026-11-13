@@ -338,6 +338,11 @@
       .route-actions { flex-direction: column; }
       .navigation-hud { align-items: flex-start; flex-direction: column; }
     }
+    .route-box { border-radius:22px; }
+    .btn:not(.danger):not(.secondary) { background:#1967d2; }
+    .police-base-icon { display:grid; place-items:center; background:white; border:2px solid #174ea6; border-radius:50%; font-size:21px; box-shadow:0 2px 7px #0004; }
+    #routeDetails { margin:6px 0; }
+    #reportType { width:100%; padding:10px; }
   </style>
 </head>
 
@@ -352,6 +357,7 @@
     <button onclick="abrirPainel('truckPanel')">🚛 Meu caminhão</button>
     <button onclick="abrirPainel('historyPanel')">🕘 Histórico de viagens</button>
     <button onclick="abrirPainel('sourcesPanel')">🏗️ Alturas e fontes</button>
+    <button onclick="abrirPainel('roadAlertPanel')">⚠️ Alertas de rodovia</button>
   </nav>
 
   <section class="route-box">
@@ -375,6 +381,7 @@
       </button>
     </div>
 
+    <p class="small" id="routeDetails" aria-live="polite"></p>
     <div id="routeAlternatives" class="route-alternatives"></div>
 
     <button id="startTripButton" class="btn full start-trip-button" onclick="iniciarViagem()">
@@ -386,6 +393,31 @@
   <div id="notice" class="notice"></div>
 
   <div class="panel-backdrop" id="panelBackdrop">
+    <section class="panel" id="roadAlertPanel" style="display:none">
+      <div class="panel-header">
+        <h2>Alertas de rodovia</h2>
+        <button class="btn close-btn" onclick="fecharPaineis()">✕</button>
+      </div>
+      <h3>Comunicados oficiais</h3>
+      <div id="officialRoadList"></div>
+      <h3>Relatar ocorrência</h3>
+      <p class="small">Relatos comunitários duram seis horas. Registre com o veículo parado.</p>
+    <form id="reportForm">
+      <label for="reportType">Relatar ocorrência na rodovia</label>
+      <select id="reportType">
+        <option value="policia">Ocorrência com polícia ou atendimento policial</option>
+        <option value="acidente">Acidente</option>
+        <option value="objeto">Objeto na pista</option>
+        <option value="interdicao">Pista interditada</option>
+      </select>
+      <div class="map-actions">
+        <button class="btn" type="submit">Usar minha localização</button>
+        <button id="pickReport" type="button" class="btn secondary">Marcar no mapa</button>
+      </div>
+      <p class="small" id="reportStatus" aria-live="polite">Relatos comunitários duram 6 horas. Registre com o veículo parado.</p>
+    </form>
+
+    </section>
     <section class="panel" id="accountPanel" style="display:none">
       <div class="panel-header">
         <h2>Minha conta</h2>
@@ -430,6 +462,9 @@
 
       <label>Largura do caminhão em metros</label>
       <input id="truckWidth" type="number" min="0" step="0.01" placeholder="Ex.: 2.60" />
+
+      <label for="truckLength">Comprimento em metros</label>
+      <input id="truckLength" type="number" min="0" step="0.01" placeholder="Ex.: 25 ou 30" />
 
       <label>Margem de segurança em metros</label>
       <input id="truckMargin" type="number" min="0" step="0.01" value="0.15" />
@@ -685,6 +720,228 @@
       }
     }
 
+  let routeDetailsLayer;
+  let communityLayer;
+  const reportLabels = {policia:"Atendimento policial", acidente:"Acidente", objeto:"Objeto na pista", interdicao:"Pista interditada"};
+  const reportStatus = document.getElementById("reportStatus");
+  let reportPin = false;
+  let reportPending = false;
+
+  async function refreshReports() {
+    if (!currentUser) return;
+    const userId = currentUser.id;
+    const {data, error} = await supabaseClient.from("gps_road_reports")
+      .select("kind,latitude,longitude").gte("created_at", new Date(Date.now() - 21600000).toISOString())
+      .order("created_at", {ascending:false}).limit(250);
+    if (currentUser?.id !== userId) return;
+    communityLayer.clearLayers();
+    if (error) {
+      reportStatus.textContent = "Relatos compartilhados indisponíveis. Confira a configuração do Supabase.";
+      return;
+    }
+    for (const row of data) {
+      L.circleMarker([row.latitude, row.longitude], {color:"#9334e6", radius:7, fillOpacity:.8})
+        .bindPopup(textoSeguro(reportLabels[row.kind]) + " · relato comunitário").addTo(communityLayer);
+    }
+  }
+
+  async function submitReport(lat, lng) {
+    if (reportPending) return;
+    if (!currentUser) {
+      reportStatus.textContent = "Entre na sua conta para publicar.";
+      return;
+    }
+    reportPending = true;
+    try {
+      const {error} = await supabaseClient.from("gps_road_reports").insert({
+        user_id:currentUser.id, kind:document.getElementById("reportType").value, latitude:lat, longitude:lng
+      });
+      if (error) throw error;
+      reportStatus.textContent = "Relato publicado por 6 horas.";
+      await refreshReports();
+    } catch {
+      reportStatus.textContent = "Não foi possível publicar o relato.";
+    } finally {
+      reportPending = false;
+    }
+  }
+
+  document.getElementById("reportForm").addEventListener("submit", event => {
+    event.preventDefault();
+    reportPin = false;
+    if (!currentUser || !navigator.geolocation) {
+      reportStatus.textContent = "Entre na conta e permita a localização, ou marque no mapa.";
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      position => submitReport(position.coords.latitude, position.coords.longitude),
+      () => { reportStatus.textContent = "Localização indisponível. Marque o ponto no mapa."; },
+      {enableHighAccuracy:true, timeout:12000}
+    );
+  });
+  document.getElementById("pickReport").addEventListener("click", () => {
+    reportPin = Boolean(currentUser);
+    reportStatus.textContent = reportPin ? "Toque no mapa para publicar nesse ponto." : "Entre na sua conta para publicar.";
+    if (reportPin) {
+      fecharPaineis();
+      aviso("Toque no mapa para publicar nesse ponto.");
+    }
+  });
+  function reportMapClick({latlng}) {
+    if (!reportPin) return;
+    reportPin = false;
+    abrirPainel("roadAlertPanel");
+    submitReport(latlng.lat, latlng.lng);
+  }
+
+  let routeLookup;
+  async function loadRouteDetails(route) {
+    routeLookup?.abort();
+    const lookup = new AbortController();
+    routeLookup = lookup;
+    const details = document.getElementById("routeDetails");
+    routeDetailsLayer.clearLayers();
+    details.textContent = "Buscando bases e superfície ao longo do trajeto…";
+    const projected = route.geometry.coordinates.map(([lon,lat]) => L.CRS.EPSG3857.project(L.latLng(lat,lon)));
+    const samples = L.LineUtil.simplify(projected, 175).map(point => L.CRS.EPSG3857.unproject(point));
+    const routeEdges = new Set();
+    for (const leg of route.legs) {
+      const nodes = leg.annotation?.nodes ?? [];
+      for (let i = 1; i < nodes.length; i++) {
+        routeEdges.add(Math.min(nodes[i-1],nodes[i]) + "/" + Math.max(nodes[i-1],nodes[i]));
+      }
+    }
+    const seen = new Set();
+    let bases = 0;
+    let dirt = 0;
+    let failures = 0;
+    for (let start = 0; start < samples.length - 1; start += 179) {
+      if (lookup.signal.aborted) return;
+      const corridor = samples.slice(start,start + 180).map(p => p.lat.toFixed(5) + "," + p.lng.toFixed(5)).join(",");
+      const surface = "unpaved|dirt|earth|ground|gravel|fine_gravel|compacted|sand|mud|laterite";
+      const query = '[out:json][timeout:20];(nwr(around:750,' + corridor +
+        ')["amenity"="police"];way(around:750,' + corridor +
+        ')["highway"]["surface"~"^(' + surface + ')$"];);out geom;';
+      try {
+        const response = await fetch("https://overpass-api.de/api/interpreter?data=" + encodeURIComponent(query),
+          {signal:AbortSignal.any([lookup.signal, AbortSignal.timeout(28000)])});
+        if (!response.ok) throw new Error("Overpass indisponível");
+        const result = await response.json();
+        if (lookup.signal.aborted) return;
+        if (result.remark) failures++;
+        for (const item of result.elements) {
+          const key = item.type + "/" + item.id;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          if (item.tags?.amenity === "police") {
+            const point = item.lat != null ? item : (item.geometry || item.members?.flatMap(member => member.geometry || []))?.[0];
+            if (!point) continue;
+            bases++;
+            L.marker([point.lat, point.lon], {
+              icon: L.divIcon({className:"police-base-icon", html:"👮‍♂️", iconSize:[34,34], iconAnchor:[17,17]}),
+              title: item.tags.name || "Base policial mapeada"
+            })
+              .bindPopup(textoSeguro(item.tags.name || "Base policial mapeada")).addTo(routeDetailsLayer);
+            continue;
+          }
+          if (!item.nodes || !item.geometry) continue;
+          let matched = false;
+          for (let i = 1; i < item.nodes.length; i++) {
+            const a = item.nodes[i-1], b = item.nodes[i];
+            if (!routeEdges.has(Math.min(a,b) + "/" + Math.max(a,b))) continue;
+            matched = true;
+            L.polyline(item.geometry.slice(i-1,i+1).map(p => [p.lat,p.lon]), {color:"#ec7900",weight:7})
+              .bindPopup("Piso sem pavimento mapeado · " + textoSeguro(item.tags.surface)).addTo(routeDetailsLayer);
+          }
+          if (matched) dirt++;
+        }
+      } catch {
+        failures++;
+      }
+    }
+    if (lookup.signal.aborted) return;
+    details.textContent = bases + " base(s) policial(is) nas proximidades e " + dirt +
+      " via(s) sem pavimento identificada(s) na rota. A cobertura do mapa pode ser incompleta." +
+      (failures ? "  Parte da consulta está indisponível." : "") +
+      (!routeEdges.size ? " O serviço de rota não forneceu dados para comparar o pavimento." : "");
+  }
+
+  let officialRoadRows = [];
+  const bridgeBulletin = [
+    ["11-14", "389,79"], ["11-21", "396,38"], ["11-28", "396,93"],
+    ["12-05", "403,60"], ["12-12", "418,37"]
+  ].map(([day, km]) => ({
+    road_name: "BR-464", state_code: "MG", city: "Delfinópolis–Sacramento",
+    description: "Km " + km + " · Interdição nos dois sentidos para manutenção de ponte. Afeta todas as carretas. O desvio do DNIT inclui balsa com capacidade para essas dimensões não informada.",
+    valid_from: "2026-" + day + "T07:00:00-03:00",
+    valid_until: "2026-" + day + "T17:00:00-03:00",
+    verification_status: "verified",
+    source: "https://www.gov.br/dnit/pt-br/central-de-conteudos/noticias-alerta-de-servicos/dnit-alerta-para-interdicoes-programadas-na-br-464-mg-entre-delfinopolis-e-sacramento"
+  }));
+  let officialRoadError = false;
+  function officialSource(row) {
+    const status = String(row.verification_status ?? "").trim().toLowerCase();
+    if (!["official", "verified", "verificado", "verificada"].includes(status)) return null;
+    try {
+      const url = new URL(row.source);
+      return url.protocol === "https:" && !url.username && !url.password ? url.href : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function renderOfficialRoadAlerts() {
+    const list = document.getElementById("officialRoadList");
+    const height = Number(obterPerfilCaminhao().height_m) || 4.40;
+    const length = Number(obterPerfilCaminhao().length_m) || null;
+    const now = Date.now();
+    const date = value => new Date(value).toLocaleString("pt-BR");
+    list.replaceChildren();
+    if (officialRoadError) list.append("Consulta ao banco indisponível. Confira o boletim incorporado abaixo.");
+    for (const row of [...bridgeBulletin, ...officialRoadRows]) {
+      const source = officialSource(row);
+      if (!source || (row.valid_until && Date.parse(row.valid_until) <= now)) continue;
+      const alert = document.createElement("article");
+      alert.className = "card";
+      const title = document.createElement("strong");
+      title.textContent = [row.road_name, row.state_code, row.city].filter(Boolean).join(" · ");
+      const change = document.createElement("div");
+      change.textContent = row.description;
+      const limits = document.createElement("div");
+      const impact = [];
+      if (row.max_height_m != null) {
+        impact.push("Limite de altura " + row.max_height_m + " m");
+        if (height != null && height > Number(row.max_height_m)) impact.push("Sua altura excede o limite");
+      }
+      if (row.max_length_m != null) {
+        impact.push("Limite de comprimento " + row.max_length_m + " m");
+        const lengths = (length == null ? [25, 30] : [length]).filter(value => value > Number(row.max_length_m));
+        if (lengths.length) impact.push("Acima do limite: " + lengths.map(value => value + " m").join(" e "));
+      }
+      limits.textContent = impact.join(" · ");
+      const period = document.createElement("div");
+      const start = row.valid_from ? date(row.valid_from) : "início não informado";
+      const end = row.valid_until ? date(row.valid_until) : "término não informado";
+      period.textContent = (row.valid_from && Date.parse(row.valid_from) > now ? "Previsto · " : "") + start + " → " + end;
+      const link = document.createElement("a");
+      link.href = source;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = "Abrir comunicado oficial";
+      alert.append(title, change, limits, period, link);
+      list.append(alert);
+    }
+    if (!list.childNodes.length) list.textContent = "Nenhum comunicado verificado com link está disponível nos dados carregados.";
+  }
+
+
+  async function loadOfficialAlerts() {
+    const {data,error} = await supabaseClient.from("road_restrictions").select("*").limit(500);
+    officialRoadRows = data || [];
+    officialRoadError = Boolean(error);
+    renderOfficialRoadAlerts();
+  }
+
     function iniciarMapa() {
       map = L.map('map').setView([-14.235, -51.9253], 4);
 
@@ -693,6 +950,9 @@
         attribution: '&copy; OpenStreetMap'
       }).addTo(map);
 
+      routeDetailsLayer = L.layerGroup().addTo(map);
+      communityLayer = L.layerGroup().addTo(map);
+      map.on("click", reportMapClick);
       clearanceLayer = L.layerGroup().addTo(map);
       stopsLayer = L.layerGroup().addTo(map);
     }
@@ -707,6 +967,7 @@
 
       document.getElementById(id).style.display = 'block';
 
+      if (id === 'roadAlertPanel') renderOfficialRoadAlerts();
       if (id === 'historyPanel') mostrarHistorico();
       if (id === 'accountPanel') atualizarConta();
       if (id === 'truckPanel') carregarPerfilCaminhao();
@@ -733,6 +994,7 @@
       document.getElementById('truckName').value = perfil.name || '';
       document.getElementById('truckHeight').value = perfil.height_m || '';
       document.getElementById('truckWidth').value = perfil.width_m || '';
+      document.getElementById('truckLength').value = perfil.length_m || '';
       document.getElementById('truckMargin').value = perfil.margin_m ?? 0.15;
     }
 
@@ -741,6 +1003,7 @@
         name: document.getElementById('truckName').value.trim(),
         height_m: Number(document.getElementById('truckHeight').value),
         width_m: Number(document.getElementById('truckWidth').value),
+        length_m: Number(document.getElementById('truckLength').value) || null,
         margin_m: Number(document.getElementById('truckMargin').value || 0.15)
       };
 
@@ -806,6 +1069,8 @@
       }
 
       currentUser = null;
+      reportPin = false;
+      communityLayer.clearLayers();
       atualizarConta();
       aviso('Sessão encerrada.');
     }
@@ -833,6 +1098,7 @@
 
       currentUser = data?.session?.user || null;
       atualizarConta();
+      if (currentUser) void refreshReports();
     }
 
     function textoSeguro(valor) {
@@ -1121,7 +1387,7 @@
           `https://router.project-osrm.org/route/v1/driving/${coordenadasOSRM}` +
           `?overview=full` +
           `&geometries=geojson` +
-          `&steps=true` +
+          `&steps=true&annotations=nodes` +
           `&alternatives=true` +
           `&continue_straight=false`;
 
@@ -1213,7 +1479,7 @@
 
       routeLayer = L.geoJSON(currentRoute.geometry, {
         style: {
-          color: '#146c43',
+          color: '#1a73e8',
           weight: 6,
           opacity: 0.9
         }
@@ -1224,6 +1490,7 @@
       });
 
       exibirAlternativasDeRota();
+      void loadRouteDetails(currentRoute);
     }
 
     function iniciarViagem() {
@@ -1425,7 +1692,8 @@
 
       if (iniciarSupabase()) {
         await verificarSessao();
-        await carregarViadutosOficiais();
+        await Promise.all([carregarViadutosOficiais(), loadOfficialAlerts()]);
+        setInterval(() => { void refreshReports(); }, 60000);
       }
     });
   </script>
