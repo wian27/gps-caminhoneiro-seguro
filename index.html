@@ -357,6 +357,10 @@
     .police-base-icon { display:grid; place-items:center; background:white; border:2px solid #174ea6; border-radius:50%; font-size:21px; box-shadow:0 2px 7px #0004; }
     #routeDetails { margin:6px 0; }
     #reportType { width:100%; padding:10px; }
+    .gps-position { background:transparent; border:0; }
+    .gps-position svg { display:block; overflow:visible; filter:drop-shadow(0 2px 3px #0005); }
+    .gps-position-arrow, .gps-position-dot { fill:#1967d2; stroke:#fff; stroke-width:2.5; }
+    .gps-position-arrow[hidden], .gps-position-dot[hidden] { display:none; }
   </style>
 </head>
 
@@ -386,7 +390,7 @@
     <input id="destinationInput" placeholder="Destino: cidade ou endereço" />
 
     <div class="route-actions">
-      <button class="btn secondary" onclick="usarLocalizacaoAtual()">
+      <button id="locateButton" type="button" class="btn secondary" onclick="usarLocalizacaoAtual()">
         📍 Minha localização
       </button>
 
@@ -564,6 +568,82 @@
     let currentUser = null;
     let navigationWatchId = null;
     let navigationMarker = null;
+    let ultimaPosicaoGps = null;
+    const opcoesGps = {enableHighAccuracy:true, maximumAge:0, timeout:15000};
+
+    function rumoDaRota(coords) {
+      const linha = currentRoute?.geometry?.coordinates;
+      if (!linha || linha.length < 2) return null;
+
+      const escalaLongitude = Math.cos(coords.latitude * Math.PI / 180) * 111320;
+      const pontoLocal = ([lng, lat]) => [
+        (((lng - coords.longitude + 540) % 360) - 180) * escalaLongitude,
+        (lat - coords.latitude) * 111320
+      ];
+      const tolerancia = Math.max(40, Math.min(coords.accuracy || 0, 80));
+      let menorDistancia = tolerancia;
+      let trecho = null;
+      let [ax, ay] = pontoLocal(linha[0]);
+
+      for (let i = 1; i < linha.length; i++) {
+        const [bx, by] = pontoLocal(linha[i]);
+        const dx = bx - ax;
+        const dy = by - ay;
+        const comprimento = Math.hypot(dx, dy);
+        if (comprimento > 0) {
+          const fracao = Math.max(0, Math.min(1, -(ax * dx + ay * dy) / (comprimento ** 2)));
+          const distancia = Math.hypot(ax + fracao * dx, ay + fracao * dy);
+          if (distancia < menorDistancia) {
+            menorDistancia = distancia;
+            trecho = {i, fracao, dx, dy, comprimento};
+          }
+        }
+        ax = bx;
+        ay = by;
+      }
+      if (!trecho) return null;
+
+      let {i, fracao, dx, dy, comprimento} = trecho;
+      // Na saída de um trecho curto, use o sentido do próximo segmento.
+      while ((1 - fracao) * comprimento < 8 && i + 1 < linha.length) {
+        const [x, y] = pontoLocal(linha[i]);
+        const [proximoX, proximoY] = pontoLocal(linha[++i]);
+        const proximoComprimento = Math.hypot(proximoX - x, proximoY - y);
+        if (!proximoComprimento) continue;
+        dx = proximoX - x;
+        dy = proximoY - y;
+        comprimento = proximoComprimento;
+        fracao = 0;
+      }
+      return (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+    }
+
+    function mostrarPosicaoGps(posicao) {
+      ultimaPosicaoGps = posicao;
+      const coords = posicao.coords;
+      const ponto = [coords.latitude, coords.longitude];
+      if (!navigationMarker) {
+        const icon = L.divIcon({
+          className: 'gps-position',
+          iconSize: [38, 38],
+          iconAnchor: [19, 19],
+          html: '<svg viewBox="0 0 38 38" aria-hidden="true"><path class="gps-position-arrow" d="M19 4 32 30 19 24 6 30Z"/><circle class="gps-position-dot" cx="19" cy="19" r="8"/></svg>'
+        });
+        navigationMarker = L.marker(ponto, {icon, title:'Sua localização', zIndexOffset:1000})
+          .bindPopup('Você está aqui').addTo(map);
+      } else {
+        navigationMarker.setLatLng(ponto);
+      }
+
+      const rumo = rumoDaRota(coords) ?? (Number.isFinite(coords.heading) ? coords.heading : null);
+      const icone = navigationMarker.getElement();
+      const seta = icone.querySelector('.gps-position-arrow');
+      const pontoAzul = icone.querySelector('.gps-position-dot');
+      seta.toggleAttribute('hidden', rumo === null);
+      pontoAzul.toggleAttribute('hidden', rumo !== null);
+      seta.setAttribute('transform', `rotate(${rumo ?? 0} 19 19)`);
+      return ponto;
+    }
     let acompanharPosicao = true;
 
     function mostrarPercurso() {
@@ -1347,29 +1427,35 @@
 
     function usarLocalizacaoAtual() {
       if (!navigator.geolocation) {
-        aviso('Seu navegador não oferece geolocalização.', 'error');
+        aviso('Abra o GPS em uma página segura e permita a localização.', 'error');
         return;
       }
 
+      const botao = document.getElementById('locateButton');
+      botao.disabled = true;
+      aviso('Buscando sua localização…');
       navigator.geolocation.getCurrentPosition(
         posicao => {
-          if (!document.body.classList.contains('navigation-mode')) return;
-          const ponto = [
-            posicao.coords.latitude,
-            posicao.coords.longitude
-          ];
-
-          document.getElementById('originInput').value =
-            `${ponto[0]}, ${ponto[1]}`;
-
-          map.setView(ponto, 14);
+          botao.disabled = false;
+          const ponto = mostrarPosicaoGps(posicao);
+          document.getElementById('originInput').value = ponto.join(', ');
+          const zoom = 16;
+          const painel = document.querySelector('.route-box').getBoundingClientRect();
+          const mapa = map.getContainer().getBoundingClientRect();
+          const encoberto = painel.right >= mapa.left + mapa.width / 2
+            ? Math.max(0, Math.min(painel.bottom - mapa.top, mapa.height - 70))
+            : 0;
+          const centro = map.project(ponto, zoom).subtract([0, encoberto / 2]);
+          map.setView(map.unproject(centro, zoom), zoom, {animate:false});
           aviso('Localização atual definida como origem.');
         },
-        () => aviso('Não foi possível obter sua localização.', 'error'),
-        {
-          enableHighAccuracy: true,
-          timeout: 10000
-        }
+        erro => {
+          botao.disabled = false;
+          aviso(erro.code === 1
+            ? 'Permita o acesso à localização nas configurações do GPS.'
+            : 'O GPS não encontrou sua posição. Confira se a localização está ligada e tente de novo.', 'error');
+        },
+        opcoesGps
       );
     }
 
@@ -1501,6 +1587,7 @@
 
       selectedRouteIndex = indice;
       currentRoute = routeAlternatives[indice];
+      if (ultimaPosicaoGps) mostrarPosicaoGps(ultimaPosicaoGps);
       etapasFaladas = new Set();
 
       if (!preservarViagem) {
@@ -1546,10 +1633,6 @@
       etapasFaladas = new Set();
       acompanharPosicao = true;
       avisoBasesFalado = false;
-      if (navigationMarker) {
-        navigationMarker.remove();
-        navigationMarker = null;
-      }
       falar('Viagem iniciada. Siga a rota indicada.', true);
       exibirBasesNaNavegacao();
 
@@ -1582,20 +1665,8 @@
 
       navigationWatchId = navigator.geolocation.watchPosition(
         posicao => {
-          const ponto = [
-            posicao.coords.latitude,
-            posicao.coords.longitude
-          ];
-
-          if (navigationMarker) {
-            navigationMarker.setLatLng(ponto);
-          } else {
-            navigationMarker = L.marker(ponto, {
-              title: 'Sua localização'
-            })
-              .bindPopup('Você está aqui')
-              .addTo(map);
-          }
+          if (!document.body.classList.contains('navigation-mode')) return;
+          const ponto = mostrarPosicaoGps(posicao);
 
           if (acompanharPosicao) centralizarPosicao(ponto);
 
@@ -1630,10 +1701,6 @@
     }
 
     function encerrarViagem() {
-      if (navigationMarker) {
-        navigationMarker.remove();
-        navigationMarker = null;
-      }
       if (navigationWatchId !== null) {
         navigator.geolocation.clearWatch(navigationWatchId);
         navigationWatchId = null;
