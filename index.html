@@ -340,6 +340,18 @@
       .route-actions { flex-direction: column; }
       .navigation-hud { align-items: flex-start; flex-direction: column; }
     }
+    .topbar { background:#fff; color:#202124; border-bottom:1px solid #dadce0; }
+    .topbar button { background:#e8f0fe; color:#174ea6; }
+    .route-box { max-height:calc(100dvh - 82px); overflow-y:auto; }
+    .route-box input { background:#f1f3f4; border-color:transparent; border-radius:20px; }
+    .route-option.selected { background:#e8f0fe; border-color:#1967d2; }
+    .navigation-hud { background:#fff; color:#202124; border-radius:22px; }
+    body.navigation-mode .leaflet-top { top:var(--navigation-hud-bottom, 160px); }
+    .navigation-actions { display:flex; flex-wrap:wrap; gap:8px; }
+    #navigationRouteAlert { margin:6px 0 0; color:#174ea6; font-size:13px; }
+    #recenterButton { position:fixed; right:14px; bottom:36px; z-index:1200;
+      border-radius:24px; box-shadow:0 2px 9px #0004; }
+    body:not(.navigation-mode) #recenterButton { display:none; }
     .route-box { border-radius:22px; }
     .btn:not(.danger):not(.secondary) { background:#1967d2; }
     .police-base-icon { display:grid; place-items:center; background:white; border:2px solid #174ea6; border-radius:50%; font-size:21px; box-shadow:0 2px 7px #0004; }
@@ -517,9 +529,11 @@
       <div id="navigationInfo" class="navigation-info">
         Aguardando localização...
       </div>
+      <p id="navigationRouteAlert" role="status"></p>
     </div>
 
-    <div style="display:flex;gap:8px;align-items:center">
+    <div class="navigation-actions">
+      <button class="btn secondary" type="button" onclick="mostrarPercurso()">Ver percurso</button>
       <button id="voiceButton" class="btn secondary" type="button" onclick="alternarVoz()">
         🔊 Voz ativa
       </button>
@@ -529,6 +543,8 @@
       </button>
     </div>
   </div>
+
+  <button id="recenterButton" class="btn secondary" type="button" onclick="recentralizarMapa()">◎ Recentralizar</button>
 
   <script>
     const firebaseConfig = {
@@ -548,6 +564,33 @@
     let currentUser = null;
     let navigationWatchId = null;
     let navigationMarker = null;
+    let acompanharPosicao = true;
+
+    function mostrarPercurso() {
+      if (!routeLayer) return;
+      acompanharPosicao = false;
+      const hud = document.getElementById('navigationHud');
+      map.fitBounds(routeLayer.getBounds(), {
+        paddingTopLeft: [28, hud.getBoundingClientRect().bottom + 18],
+        paddingBottomRight: [28, 75]
+      });
+    }
+
+    function recentralizarMapa() {
+      acompanharPosicao = true;
+      if (navigationMarker) {
+        centralizarPosicao(navigationMarker.getLatLng());
+      } else {
+        aviso('Aguardando a primeira posição do GPS.', 'warn');
+      }
+    }
+    function centralizarPosicao(posicao) {
+      const zoom = 16;
+      const hudBottom = document.getElementById('navigationHud').getBoundingClientRect().bottom;
+      const centro = map.project(posicao, zoom).subtract([0, hudBottom / 2]);
+      map.setView(map.unproject(centro, zoom), zoom, {animate:false});
+    }
+
     let quantidadeParadas = 0;
     let tripStartedForCurrentRoute = false;
 
@@ -594,6 +637,7 @@
       } else {
         aviso('Comandos por voz ativados.', 'ok');
         falar('Comandos por voz ativados.', true);
+        exibirBasesNaNavegacao();
       }
 
       atualizarBotaoVoz();
@@ -783,6 +827,23 @@
   }
 
   let routeLookup;
+  let resumoBases = '';
+  let quantidadeBases = 0;
+  let avisoBasesFalado = false;
+
+  function exibirBasesNaNavegacao() {
+    const alerta = document.getElementById('navigationRouteAlert');
+    if (alerta.textContent !== resumoBases) alerta.textContent = resumoBases;
+    if (document.body.classList.contains('navigation-mode')) {
+      document.body.style.setProperty('--navigation-hud-bottom',
+        document.getElementById('navigationHud').getBoundingClientRect().bottom + 'px');
+    }
+    if (avisoBasesFalado || !document.body.classList.contains('navigation-mode')) return;
+    if (quantidadeBases > 0 && vozAtiva) {
+      avisoBasesFalado = true;
+      falar('Atenção, há base policial mapeada perto do trajeto.');
+    }
+  }
   async function loadRouteDetails(route) {
     routeLookup?.abort();
     const lookup = new AbortController();
@@ -790,10 +851,14 @@
     const details = document.getElementById("routeDetails");
     routeDetailsLayer.clearLayers();
     details.textContent = "Buscando bases e superfície ao longo do trajeto…";
+    quantidadeBases = 0;
+    resumoBases = "Buscando bases policiais próximas ao percurso…";
+    avisoBasesFalado = false;
+    exibirBasesNaNavegacao();
     const projected = route.geometry.coordinates.map(([lon,lat]) => L.CRS.EPSG3857.project(L.latLng(lat,lon)));
     const samples = L.LineUtil.simplify(projected, 175).map(point => L.CRS.EPSG3857.unproject(point));
     const routeEdges = new Set();
-    for (const leg of route.legs) {
+    for (const leg of route.legs ?? []) {
       const nodes = leg.annotation?.nodes ?? [];
       for (let i = 1; i < nodes.length; i++) {
         routeEdges.add(Math.min(nodes[i-1],nodes[i]) + "/" + Math.max(nodes[i-1],nodes[i]));
@@ -803,6 +868,16 @@
     let bases = 0;
     let dirt = 0;
     let failures = 0;
+    const atualizarResumoBases = () => {
+      quantidadeBases = bases;
+      if (failures && !bases) {
+        resumoBases = "Consulta de bases policiais incompleta.";
+      } else {
+        resumoBases = bases + (bases === 1 ? " base policial mapeada" : " bases policiais mapeadas") +
+          " perto do trajeto." + (failures ? " Consulta parcial." : "");
+      }
+      exibirBasesNaNavegacao();
+    };
     for (let start = 0; start < samples.length - 1; start += 179) {
       if (lookup.signal.aborted) return;
       const corridor = samples.slice(start,start + 180).map(p => p.lat.toFixed(5) + "," + p.lng.toFixed(5)).join(",");
@@ -843,11 +918,14 @@
           }
           if (matched) dirt++;
         }
+        if (bases) atualizarResumoBases();
       } catch {
         failures++;
       }
     }
     if (lookup.signal.aborted) return;
+    if (samples.length < 2) failures++;
+    atualizarResumoBases();
     details.textContent = bases + " base(s) policial(is) nas proximidades e " + dirt +
       " via(s) sem pavimento identificada(s) na rota. A cobertura do mapa pode ser incompleta." +
       (failures ? "  Parte da consulta está indisponível." : "") +
@@ -947,6 +1025,9 @@
       }).addTo(map);
 
       routeDetailsLayer = L.layerGroup().addTo(map);
+      map.on('dragstart', () => {
+        if (document.body.classList.contains('navigation-mode')) acompanharPosicao = false;
+      });
       communityLayer = L.layerGroup().addTo(map);
       map.on("click", reportMapClick);
       clearanceLayer = L.layerGroup().addTo(map);
@@ -1272,6 +1353,7 @@
 
       navigator.geolocation.getCurrentPosition(
         posicao => {
+          if (!document.body.classList.contains('navigation-mode')) return;
           const ponto = [
             posicao.coords.latitude,
             posicao.coords.longitude
@@ -1462,9 +1544,18 @@
 
       atualizarBotaoVoz();
       etapasFaladas = new Set();
+      acompanharPosicao = true;
+      avisoBasesFalado = false;
+      if (navigationMarker) {
+        navigationMarker.remove();
+        navigationMarker = null;
+      }
       falar('Viagem iniciada. Siga a rota indicada.', true);
+      exibirBasesNaNavegacao();
 
       map.invalidateSize();
+      mostrarPercurso();
+      acompanharPosicao = true;
 
       if (!tripStartedForCurrentRoute) {
         const origem = document.getElementById('originInput').value.trim();
@@ -1506,7 +1597,7 @@
               .addTo(map);
           }
 
-          map.setView(ponto, 16);
+          if (acompanharPosicao) centralizarPosicao(ponto);
 
           const velocidadeKmH = posicao.coords.speed
             ? Math.round(posicao.coords.speed * 3.6)
@@ -1539,6 +1630,10 @@
     }
 
     function encerrarViagem() {
+      if (navigationMarker) {
+        navigationMarker.remove();
+        navigationMarker = null;
+      }
       if (navigationWatchId !== null) {
         navigator.geolocation.clearWatch(navigationWatchId);
         navigationWatchId = null;
