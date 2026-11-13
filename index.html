@@ -7,7 +7,9 @@
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore-compat.js"></script>
 
   <style>
     * { box-sizing: border-box; }
@@ -427,7 +429,7 @@
       <div id="loggedArea" style="display:none">
         <div class="card">
           <strong id="loggedEmail"></strong>
-          <p class="small">Sessão ativa no Supabase.</p>
+          <p class="small">Sessão ativa no Firebase.</p>
           <button class="btn danger full" onclick="sair()">Sair da conta</button>
         </div>
       </div>
@@ -440,6 +442,7 @@
         <input id="passwordInput" type="password" placeholder="Sua senha" />
 
         <button class="btn full" onclick="entrar()">Entrar</button>
+        <button class="btn secondary full" onclick="entrar(true)">Criar conta</button>
       </div>
     </section>
 
@@ -528,10 +531,13 @@
   </div>
 
   <script>
-    const SUPABASE_URL = 'https://paiijqyfozhanqdihhph.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_wee3DURgbdJQC7xXOJsSCQ_mhRrH6w1';
-
-    let supabaseClient = null;
+    const firebaseConfig = {
+      apiKey: "AIzaSyAg93-CpIcuQ3KdEg4tweJIlf3mH8eyne0",
+      authDomain: "gps-caminhoneiro-seguro.firebaseapp.com",
+      projectId: "gps-caminhoneiro-seguro",
+      appId: "1:425939961210:web:4e1d308fe3e7b0990e82c3"
+    };
+    let db;
     let map;
     let routeLayer = null;
     let clearanceLayer = null;
@@ -694,32 +700,6 @@
       }
     }
 
-    function iniciarSupabase() {
-      try {
-        if (!window.supabase || !window.supabase.createClient) {
-          throw new Error('Biblioteca do Supabase não carregada.');
-        }
-
-        supabaseClient = window.supabase.createClient(
-          SUPABASE_URL,
-          SUPABASE_ANON_KEY,
-          {
-            auth: {
-              persistSession: true,
-              autoRefreshToken: true,
-              detectSessionInUrl: true
-            }
-          }
-        );
-
-        return true;
-      } catch (erro) {
-        console.error(erro);
-        aviso(`Erro no Supabase: ${erro.message}`, 'error');
-        return false;
-      }
-    }
-
   let routeDetailsLayer;
   let communityLayer;
   const reportLabels = {policia:"Atendimento policial", acidente:"Acidente", objeto:"Objeto na pista", interdicao:"Pista interditada"};
@@ -729,18 +709,24 @@
 
   async function refreshReports() {
     if (!currentUser) return;
-    const userId = currentUser.id;
-    const {data, error} = await supabaseClient.from("gps_road_reports")
-      .select("kind,latitude,longitude").gte("created_at", new Date(Date.now() - 21600000).toISOString())
-      .order("created_at", {ascending:false}).limit(250);
-    if (currentUser?.id !== userId) return;
-    communityLayer.clearLayers();
-    if (error) {
-      reportStatus.textContent = "Relatos compartilhados indisponíveis. Confira a configuração do Supabase.";
+    const userId = currentUser.uid;
+    let data;
+    try {
+      const snapshot = await db.collection("gps_road_reports")
+        .where("created_at", ">=", new Date(Date.now() - 21600000))
+        .orderBy("created_at", "desc").limit(250).get();
+      data = snapshot.docs.map(doc => doc.data());
+    } catch {
+      if (currentUser?.uid === userId) {
+        communityLayer.clearLayers();
+        reportStatus.textContent = "Relatos compartilhados indisponíveis.";
+      }
       return;
     }
+    if (currentUser?.uid !== userId) return;
+    communityLayer.clearLayers();
     for (const row of data) {
-      L.circleMarker([row.latitude, row.longitude], {color:"#9334e6", radius:7, fillOpacity:.8})
+      L.circleMarker([row.location.latitude, row.location.longitude], {color:"#9334e6", radius:7, fillOpacity:.8})
         .bindPopup(textoSeguro(reportLabels[row.kind]) + " · relato comunitário").addTo(communityLayer);
     }
   }
@@ -753,10 +739,12 @@
     }
     reportPending = true;
     try {
-      const {error} = await supabaseClient.from("gps_road_reports").insert({
-        user_id:currentUser.id, kind:document.getElementById("reportType").value, latitude:lat, longitude:lng
+      await db.collection("gps_road_reports").add({
+        user_id: currentUser.uid,
+        kind: document.getElementById("reportType").value,
+        location: new firebase.firestore.GeoPoint(lat, lng),
+        created_at: firebase.firestore.FieldValue.serverTimestamp()
       });
-      if (error) throw error;
       reportStatus.textContent = "Relato publicado por 6 horas.";
       await refreshReports();
     } catch {
@@ -936,9 +924,17 @@
 
 
   async function loadOfficialAlerts() {
-    const {data,error} = await supabaseClient.from("road_restrictions").select("*").limit(500);
-    officialRoadRows = data || [];
-    officialRoadError = Boolean(error);
+    try {
+      const snapshot = await db.collection("road_restrictions").limit(500).get();
+      officialRoadRows = snapshot.docs.map(doc => {
+        const row = doc.data();
+        return {...row, source: row.source_url,
+          valid_from: row.valid_from?.toDate(), valid_until: row.valid_until?.toDate()};
+      });
+      officialRoadError = false;
+    } catch {
+      officialRoadError = true;
+    }
     renderOfficialRoadAlerts();
   }
 
@@ -1015,64 +1011,42 @@
       localStorage.setItem('truckProfile', JSON.stringify(perfil));
 
       if (currentUser) {
-        const { error } = await supabaseClient
-          .from('vehicle_profiles')
-          .upsert({
-            user_id: currentUser.id,
-            truck_name: perfil.name,
-            height_m: perfil.height_m,
-            width_m: perfil.width_m,
-            safety_margin_m: perfil.margin_m,
-            updated_at: new Date().toISOString()
+        try {
+          await db.collection("vehicle_profiles").doc(currentUser.uid).set({
+            name: perfil.name, height_m: perfil.height_m, width_m: perfil.width_m,
+            length_m: perfil.length_m, safety_margin_m: perfil.margin_m,
+            updated_at: firebase.firestore.FieldValue.serverTimestamp()
           });
-
-        if (error) {
-          console.error(error);
-          aviso(`Perfil salvo localmente: ${error.message}`, 'warn');
+        } catch {
+          aviso("Perfil salvo neste aparelho. Falha ao sincronizar com Firebase.", "warn");
           return;
         }
       }
-
-      aviso('Caminhão salvo com sucesso.');
       await carregarViadutosOficiais();
+      aviso("Perfil salvo.");
     }
 
-    async function entrar() {
-      const email = document.getElementById('emailInput').value.trim();
-      const password = document.getElementById('passwordInput').value;
-
-      if (!email || !password) {
-        aviso('Informe e-mail e senha.', 'warn');
-        return;
+    async function entrar(criar = false) {
+      const email = document.getElementById("emailInput").value.trim();
+      const password = document.getElementById("passwordInput").value;
+      if (!email || !password) return aviso("Informe e-mail e senha.", "warn");
+      try {
+        const auth = firebase.auth();
+        if (criar) await auth.createUserWithEmailAndPassword(email, password);
+        else await auth.signInWithEmailAndPassword(email, password);
+        aviso(criar ? "Conta criada." : "Login realizado.");
+      } catch (error) {
+        aviso("Falha no acesso: " + error.code, "error");
       }
-
-      const { error } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        aviso(`Erro ao entrar: ${error.message}`, 'error');
-        return;
-      }
-
-      await verificarSessao();
-      aviso('Login realizado com sucesso.');
     }
 
     async function sair() {
-      const { error } = await supabaseClient.auth.signOut();
-
-      if (error) {
-        aviso(`Erro ao sair: ${error.message}`, 'error');
-        return;
+      try {
+        await firebase.auth().signOut();
+        aviso("Sessão encerrada.");
+      } catch {
+        aviso("Não foi possível sair.", "error");
       }
-
-      currentUser = null;
-      reportPin = false;
-      communityLayer.clearLayers();
-      atualizarConta();
-      aviso('Sessão encerrada.');
     }
 
     function atualizarConta() {
@@ -1089,16 +1063,6 @@
         logged.style.display = 'none';
         login.style.display = 'block';
       }
-    }
-
-    async function verificarSessao() {
-      const { data, error } = await supabaseClient.auth.getSession();
-
-      if (error) console.warn(error);
-
-      currentUser = data?.session?.user || null;
-      atualizarConta();
-      if (currentUser) void refreshReports();
     }
 
     function textoSeguro(valor) {
@@ -1121,29 +1085,17 @@
     }
 
     async function carregarViadutosOficiais() {
-      if (!supabaseClient) return;
-
-      const { data, error } = await supabaseClient
-        .from('road_clearances')
-        .select(`
-          id,
-          name,
-          road_name,
-          km,
-          latitude,
-          longitude,
-          clearance_height_m,
-          clearance_width_m,
-          status,
-          source_name,
-          source_url
-        `)
-        .in('status', ['official', 'verified'])
-        .not('latitude', 'is', null)
-        .not('longitude', 'is', null);
-
-      if (error) {
-        console.error(error);
+      if (!db) return;
+      let data;
+      try {
+        const snapshot = await db.collection("road_clearances")
+          .where("verification_status", "in", ["official", "verified"]).get();
+        data = snapshot.docs.map(doc => {
+          const row = doc.data();
+          return {...row, latitude: row.location?.latitude, longitude: row.location?.longitude};
+        }).filter(row => Number.isFinite(row.latitude) && Number.isFinite(row.longitude));
+      } catch (error) {
+        console.warn(error);
         return;
       }
 
@@ -1171,7 +1123,7 @@
           }
         }
 
-        const linkFonte = viaduto.source_url
+        const linkFonte = officialSource({source: viaduto.source_url, verification_status: viaduto.verification_status})
           ? `<p><a href="${textoSeguro(viaduto.source_url)}" target="_blank" rel="noopener">Abrir fonte oficial</a></p>`
           : '';
 
@@ -1628,18 +1580,13 @@
       );
 
       if (currentUser) {
-        const { error } = await supabaseClient
-          .from('trip_history')
-          .insert({
-            user_id: currentUser.id,
-            origin: viagem.origin,
-            destination: viagem.destination,
-            distance_km: Number(viagem.distance_km),
-            duration_min: viagem.duration_min
+        try {
+          await db.collection("vehicle_profiles").doc(currentUser.uid).collection("trip_history").add({
+            origin: origem, destination: destino, distance_m: distancia, duration_s: duracao,
+            created_at: firebase.firestore.FieldValue.serverTimestamp()
           });
-
-        if (error) {
-          console.warn('Histórico não salvo no banco:', error.message);
+        } catch (error) {
+          console.warn("Histórico salvo apenas neste aparelho:", error.code);
         }
       }
     }
@@ -1690,10 +1637,31 @@
       carregarPerfilCaminhao();
       atualizarBotaoVoz();
 
-      if (iniciarSupabase()) {
-        await verificarSessao();
-        await Promise.all([carregarViadutosOficiais(), loadOfficialAlerts()]);
+      try {
+        firebase.initializeApp(firebaseConfig);
+        db = firebase.firestore();
+        firebase.auth().onAuthStateChanged(async user => {
+          currentUser = user;
+          reportPin = false;
+          communityLayer.clearLayers();
+          atualizarConta();
+          if (!user) return;
+          void refreshReports();
+          try {
+            const snapshot = await db.collection("vehicle_profiles").doc(user.uid).get();
+            if (currentUser?.uid !== user.uid || !snapshot.exists) return;
+            const profile = snapshot.data();
+            localStorage.setItem("truckProfile", JSON.stringify({...profile, margin_m: profile.safety_margin_m}));
+            carregarPerfilCaminhao();
+            void carregarViadutosOficiais();
+          } catch (error) {
+            console.warn("Perfil indisponível:", error.code);
+          }
+        });
+        void Promise.all([carregarViadutosOficiais(), loadOfficialAlerts()]);
         setInterval(() => { void refreshReports(); }, 60000);
+      } catch {
+        aviso("Firebase indisponível. Confira a conexão.", "error");
       }
     });
   </script>
